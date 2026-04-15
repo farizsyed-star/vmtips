@@ -10,7 +10,7 @@ const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
 // Extensive Flag Mapping
 const getFlag = (team: string) => {
-  if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER")) {
+  if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER") || team.toUpperCase().includes("GROUP")) {
     return null;
   }
   const name = team.toLowerCase().trim();
@@ -28,6 +28,15 @@ const getFlag = (team: string) => {
   const code = map[name];
   return code ? `https://flagcdn.com/w40/${code}.png` : null;
 };
+
+const COUNTRIES = [
+  "Algeria", "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Cameroon", "Canada", "Chile", 
+  "Colombia", "Costa Rica", "Croatia", "Czech Republic", "Denmark", "Ecuador", "Egypt", "England", 
+  "France", "Germany", "Ghana", "Greece", "Hungary", "Iceland", "Iran", "Iraq", "Italy", "Ivory Coast", 
+  "Japan", "Mexico", "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway", "Panama", "Paraguay", 
+  "Peru", "Poland", "Portugal", "Saudi Arabia", "Scotland", "Senegal", "Serbia", "South Korea", 
+  "Spain", "Sweden", "Switzerland", "Tunisia", "Turkey", "Ukraine", "Uruguay", "USA", "Wales"
+].sort();
 
 // --- COMPONENTS ---
 
@@ -56,7 +65,7 @@ function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | n
       <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
       {isPending ? (
         <span className="text-slate-500 font-black uppercase text-xs italic tracking-widest flex items-center gap-2">
-          <Lock className="w-3 h-3" /> Awaiting Previous Phase Results
+          <Lock className="w-3 h-3" /> Awaiting Previous Phase
         </span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm italic tracking-widest flex items-center gap-2">
@@ -112,7 +121,7 @@ export default function WorldCupApp() {
     supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => setMatches(data as any || []));
   }, [view]);
 
-  if (loading) return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase tracking-widest">Loading World Cup...</div>;
+  if (loading) return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase italic tracking-widest">Loading World Cup...</div>;
   if (!user) return <AuthScreen />;
   if (!profile?.username) return <UsernameSetup userId={user.id} onComplete={() => fetchProfile(user.id)} />;
 
@@ -153,23 +162,23 @@ export default function WorldCupApp() {
 
 function NavBtn({ active, onClick, label }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 min-w-[90px] py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+    <button onClick={onClick} className={`flex-1 min-w-[100px] py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
       {label}
     </button>
   );
 }
 
-// --- SEQUENTIAL 5-ROUND MATCH LIST ---
+// --- UPDATED 5-ROUND SEQUENTIAL MATCH LIST ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   
-  // Phase End Detectors (Checks the very last match of each bucket)
+  // Phase End Detectors
   const groupEnd = matches.filter((m: any) => m.sub_phase === 'group').slice(-1)[0];
   const r32End = matches.filter((m: any) => m.sub_phase === 'r32').slice(-1)[0];
   const r16End = matches.filter((m: any) => m.sub_phase === 'r16').slice(-1)[0];
-  const semiEnd = matches.filter((m: any) => m.sub_phase === 'semi').slice(-1)[0];
+  const sfEnd = matches.filter((m: any) => m.sub_phase === 'semi').slice(-1)[0];
 
-  // Phase Start Detectors (For Countdowns)
+  // Phase Start Detectors
   const firstR32 = matches.find((m: any) => m.sub_phase === 'r32');
   const firstR16 = matches.find((m: any) => m.sub_phase === 'r16');
   const firstQF = matches.find((m: any) => m.sub_phase === 'quarter');
@@ -192,17 +201,17 @@ function MatchList({ matches, tab, setTab, userId }: any) {
     if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
     filtered = matches.filter((m: any) => m.sub_phase === 'r16');
-  } else if (tab === 4) { // Quarter & Semi
+  } else if (tab === 4) { // Quarter & Semi Finals
     if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
     filtered = matches.filter((m: any) => m.sub_phase === 'quarter' || m.sub_phase === 'semi');
-  } else if (tab === 5) { // Gold & Bronze
-    if (semiEnd && now < new Date(semiEnd.kickoff_time)) { isPending = true; matchesLocked = true; } 
+  } else if (tab === 5) { // Gold & Bronze Finals
+    if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
     filtered = matches.filter((m: any) => m.sub_phase === 'bronze' || m.sub_phase === 'final');
   }
 
-  const labels = ["", "Group Stage", "Round of 32", "Round of 16", "QF & Semi Finals", "Gold & Bronze Finals"];
+  const labels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals"];
 
   return (
     <>
@@ -213,7 +222,7 @@ function MatchList({ matches, tab, setTab, userId }: any) {
         <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
         <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
         <PhaseTab id={4} label="QF & SF" active={tab === 4} onClick={setTab} />
-        <PhaseTab id={5} label="Medal Finals" active={tab === 5} onClick={setTab} />
+        <PhaseTab id={5} label="G & B Finals" active={tab === 5} onClick={setTab} />
       </div>
 
       <div className="grid gap-4">
@@ -221,7 +230,7 @@ function MatchList({ matches, tab, setTab, userId }: any) {
           <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />
         ))}
         {!isPending && filtered.length === 0 && (
-          <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">Bracket is being decided...</div>
+          <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">Wait for bracket to decide...</div>
         )}
       </div>
     </>
@@ -265,7 +274,7 @@ function MatchCard({ match, userId, locked, isPending }: any) {
             {new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
           <span className="bg-white/5 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded uppercase italic">{match.group_name || match.sub_phase}</span>
-          {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1 italic"><Lock className="w-2 h-2" /> Pending Bracket</span>}
+          {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1 italic"><Lock className="w-2 h-2" /> View Only</span>}
         </div>
         <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest">{match.channel}</span>
       </div>
@@ -307,7 +316,6 @@ function MatchCard({ match, userId, locked, isPending }: any) {
   );
 }
 
-// --- BONUS PAGE ---
 function BonusPage({ userId }: any) {
   const locked = new Date() > TOURNAMENT_START;
   const [form, setForm] = useState({ scorer: "", assister: "", cards: "", mvp: "", goals: "" });
@@ -364,7 +372,6 @@ function BonusField({ label, value, onChange, disabled, type="text" }: any) {
   );
 }
 
-// --- LEADERBOARD & SETTLEMENT ---
 function Leaderboard() {
   const [list, setList] = useState([]);
   useEffect(() => {
@@ -403,7 +410,7 @@ function AdminPanel({ matches }: any) {
       const isExact = p.pred_home === actH && p.pred_away === actA;
       const isOutcome = (Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA));
       
-      // Dynamic Points logic
+      // Point Tiers for 5-stage setup
       if (m.sub_phase === 'group') { pts = isExact ? 2 : (isOutcome ? 1 : 0); } 
       else if (['r32', 'r16', 'quarter'].includes(m.sub_phase)) { pts = isExact ? 3 : (isOutcome ? 2 : 0); } 
       else if (m.sub_phase === 'semi') { pts = isExact ? 4 : (isOutcome ? 3 : 0); } 
@@ -414,12 +421,12 @@ function AdminPanel({ matches }: any) {
       if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
     }
     await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
-    alert(`Match Settled!`);
+    alert(`Settled!`);
   };
 
   return (
     <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
-      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline"><Shield className="w-5 h-5" /> Admin</h2>
+      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline tracking-tight italic"><Shield className="w-5 h-5" /> Admin</h2>
       <div className="space-y-4">
         {matches.filter((m: any) => !m.settled).map((m: any) => (
           <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5">
@@ -451,11 +458,11 @@ function RulesPage() {
       <section>
         <h3 className="text-emerald-400 font-black uppercase italic mb-4 flex items-center gap-2 underline tracking-widest"><Globe className="w-4 h-4" /> Scoring Engine</h3>
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Group Stage</span> 1pt (Winner) / 2pt (Score)</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">R32, R16 & QF</span> 2pt (Winner) / 3pt (Score)</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Semi Finals</span> 3pt (Winner) / 4pt (Score)</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Bronze Match</span> 4pt (Winner) / 5pt (Score)</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Gold Final</span> 5pt (Winner) / 6pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Group Stage</span> 1pt (Outcome) / 2pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">R32, R16 & QF</span> 2pt (Outcome) / 3pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Semi Finals</span> 3pt (Outcome) / 4pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Bronze Match</span> 4pt (Outcome) / 5pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Gold Final</span> 5pt (Outcome) / 6pt (Score)</li>
         </ul>
       </section>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
