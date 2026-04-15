@@ -8,10 +8,10 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", proces
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
 const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
-// Extensive Flag Mapping and Placeholder Handler
+// Extensive Flag Mapping
 const getFlag = (team: string) => {
   if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA")) {
-    return null; // Return null to show a placeholder icon instead
+    return null;
   }
   const name = team.toLowerCase().trim();
   const map: any = {
@@ -67,7 +67,7 @@ function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | n
       <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
       {isPending ? (
         <span className="text-slate-500 font-black uppercase text-xs italic tracking-widest flex items-center gap-2">
-          <Lock className="w-3 h-3" /> Awaiting Bracket Decisions
+          <Lock className="w-3 h-3" /> Awaiting Bracket Stage
         </span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm italic tracking-widest flex items-center gap-2">
@@ -94,7 +94,7 @@ function TimeBlock({ unit, val }: any) {
   );
 }
 
-// --- MAIN APP COMPONENT ---
+// --- MAIN APP ---
 export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -174,61 +174,69 @@ function NavBtn({ active, onClick, label }: any) {
   );
 }
 
-// --- MATCH LIST WITH BRACKET VIEW AND TBA HANDLING ---
+// --- MATCH LIST WITH 5-ROUND SEQUENTIAL LOCKING ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   
-  const lastMatchP1 = matches.filter((m: any) => m.phase === 1).slice(-1)[0];
-  const lastMatchP2 = matches.filter((m: any) => m.phase === 2).slice(-1)[0];
-  const firstMatchP2 = matches.find((m: any) => m.phase === 2);
-  const firstMatchP3 = matches.find((m: any) => m.phase === 3);
+  // Stages logic
+  const groupEnd = matches.filter((m: any) => m.sub_phase === 'group').slice(-1)[0];
+  const r32End = matches.filter((m: any) => m.sub_phase === 'r32').slice(-1)[0];
+  const r16End = matches.filter((m: any) => m.sub_phase === 'r16').slice(-1)[0];
+  const semiEnd = matches.filter((m: any) => m.sub_phase === 'semi').slice(-1)[0];
 
-  const isP1Finished = lastMatchP1 ? now > new Date(lastMatchP1.kickoff_time) : false;
-  const isP2Finished = lastMatchP2 ? now > new Date(lastMatchP2.kickoff_time) : false;
+  const firstR32 = matches.find((m: any) => m.sub_phase === 'r32');
+  const firstR16 = matches.find((m: any) => m.sub_phase === 'r16');
+  const firstQuarter = matches.find((m: any) => m.sub_phase === 'quarter');
+  const firstBronze = matches.find((m: any) => m.sub_phase === 'bronze');
 
   let lockTime: Date | null = null;
   let isPending = false;
   let matchesLocked = false;
+  let filteredMatches = [];
 
-  if (tab === 1) {
+  if (tab === 1) { // Group Stage
     lockTime = TOURNAMENT_START;
     matchesLocked = now > TOURNAMENT_START;
-  } else if (tab === 2) {
-    if (!isP1Finished) {
-      isPending = true;
-      matchesLocked = true;
-    } else {
-      lockTime = firstMatchP2 ? new Date(firstMatchP2.kickoff_time) : null;
-      matchesLocked = lockTime ? now > lockTime : true;
-    }
-  } else if (tab === 3) {
-    if (!isP2Finished) {
-      isPending = true;
-      matchesLocked = true;
-    } else {
-      lockTime = firstMatchP3 ? new Date(firstMatchP3.kickoff_time) : null;
-      matchesLocked = lockTime ? now > lockTime : true;
-    }
+    filteredMatches = matches.filter((m: any) => m.sub_phase === 'group');
+  } else if (tab === 2) { // R32
+    if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } 
+    else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
+    filteredMatches = matches.filter((m: any) => m.sub_phase === 'r32');
+  } else if (tab === 3) { // R16
+    if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } 
+    else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
+    filteredMatches = matches.filter((m: any) => m.sub_phase === 'r16');
+  } else if (tab === 4) { // Quarter & Semi
+    if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } 
+    else { lockTime = firstQuarter ? new Date(firstQuarter.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
+    filteredMatches = matches.filter((m: any) => m.sub_phase === 'quarter' || m.sub_phase === 'semi');
+  } else if (tab === 5) { // Bronze & Final
+    if (semiEnd && now < new Date(semiEnd.kickoff_time)) { isPending = true; matchesLocked = true; } 
+    else { lockTime = firstBronze ? new Date(firstBronze.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
+    filteredMatches = matches.filter((m: any) => m.sub_phase === 'bronze' || m.sub_phase === 'final');
   }
+
+  const tabLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarters & Semis", "Bronze & Final"];
 
   return (
     <>
-      <CountdownTimer 
-        targetDate={lockTime} 
-        label={`Locking ${tab === 1 ? "Group Stages" : tab === 2 ? "Knockout 1/16 - 1/4" : "Semis & Finals"} in`} 
-        isPending={isPending}
-      />
+      <CountdownTimer targetDate={lockTime} label={`Locking ${tabLabels[tab]} in`} isPending={isPending} />
       
       <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
-        <PhaseTab id={1} label="Group Stages" active={tab === 1} onClick={setTab} />
-        <PhaseTab id={2} label="Knockout 1/16 - 1/4" active={tab === 2} onClick={setTab} />
-        <PhaseTab id={3} label="Semis & Finals" active={tab === 3} onClick={setTab} />
+        <PhaseTab id={1} label="Groups" active={tab === 1} onClick={setTab} />
+        <PhaseTab id={2} label="R32" active={tab === 2} onClick={setTab} />
+        <PhaseTab id={3} label="R16" active={tab === 3} onClick={setTab} />
+        <PhaseTab id={4} label="QF & SF" active={tab === 4} onClick={setTab} />
+        <PhaseTab id={5} label="Medals" active={tab === 5} onClick={setTab} />
       </div>
 
       <div className="grid gap-4">
-        {matches.filter((m: any) => m.phase === tab).map((m: any) => (
+        {filteredMatches.map((m: any) => (
           <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />
         ))}
+        {!isPending && filteredMatches.length === 0 && (
+          <div className="text-center py-20 text-slate-700 font-black uppercase text-xs tracking-[0.3em]">No Data in this Stage</div>
+        )}
       </div>
     </>
   );
@@ -270,8 +278,8 @@ function MatchCard({ match, userId, locked, isPending }: any) {
             {locked && <Clock className="w-3 h-3 text-rose-500" />}
             {new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
-          {match.group_name && <span className="bg-emerald-500/10 text-emerald-400 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter italic">{match.group_name}</span>}
-          {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1"><Lock className="w-2 h-2" /> Bracket View</span>}
+          <span className="bg-emerald-500/10 text-emerald-400 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter italic">{match.sub_phase}</span>
+          {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1"><Lock className="w-2 h-2" /> Pending Bracket</span>}
         </div>
         <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest">{match.channel}</span>
       </div>
@@ -308,7 +316,7 @@ function MatchCard({ match, userId, locked, isPending }: any) {
           </div>
         </div>
       )}
-      {saved && <div className="mt-2 text-center text-[9px] text-emerald-400 font-black uppercase italic tracking-tighter">Prediction Locked & Saved</div>}
+      {saved && <div className="mt-2 text-center text-[9px] text-emerald-400 font-black uppercase italic tracking-tighter">Locked & Saved</div>}
     </div>
   );
 }
@@ -336,27 +344,20 @@ function BonusPage({ userId }: any) {
   return (
     <div className="space-y-6">
       <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Questions Lock In" />
-      
       <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8">
         <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline decoration-emerald-500 tracking-tight italic">Tournament Bonus</h2>
         <div className="space-y-6">
           <BonusField label="Top Scorer" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={locked} />
           <BonusField label="Top Assister" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={locked} />
-          
           <div>
             <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Team with Most Cards</p>
-            <select 
-              disabled={locked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})}
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer"
-            >
+            <select disabled={locked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer">
               <option value="">Select Country</option>
               {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-
           <BonusField label="Tournament MVP" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={locked} />
           <BonusField label="Total Goals Scored" value={form.goals} onChange={(v) => setForm({...form, goals: v.replace(/[^0-9]/g, "")})} disabled={locked} type="number" />
-          
           {!locked && <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest mt-4 shadow-lg shadow-emerald-500/10 hover:scale-[1.01] transition-all italic">Save Predictions</button>}
           {saved && <p className="text-center text-[10px] text-emerald-400 font-black italic mt-2 uppercase">Saved successfully!</p>}
         </div>
@@ -369,8 +370,7 @@ function BonusField({ label, value, onChange, disabled, type="text" }: any) {
   return (
     <div>
       <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">{label}</p>
-      <input 
-        type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => type === 'number' && (e.key === '-' || e.key === 'e') && e.preventDefault()}
+      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => type === 'number' && (e.key === '-' || e.key === 'e') && e.preventDefault()}
         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold"
       />
     </div>
@@ -416,61 +416,39 @@ function AdminPanel({ matches }: any) {
       let pts = 0;
       const actualH = parseInt(s.h);
       const actualA = parseInt(s.a);
-      
       const isExact = p.pred_home === actualH && p.pred_away === actualA;
       const isOutcome = (Math.sign(p.pred_home - p.pred_away) === Math.sign(actualH - actualA));
       
+      // Dynamic Scoring tiers
       if (m.sub_phase === 'group') { pts = isExact ? 2 : (isOutcome ? 1 : 0); } 
-      else if (m.sub_phase === 'r16' || m.sub_phase === 'quarter') { pts = isExact ? 3 : (isOutcome ? 2 : 0); } 
+      else if (m.sub_phase === 'r32' || m.sub_phase === 'r16' || m.sub_phase === 'quarter') { pts = isExact ? 3 : (isOutcome ? 2 : 0); } 
       else if (m.sub_phase === 'semi') { pts = isExact ? 4 : (isOutcome ? 3 : 0); } 
       else if (m.sub_phase === 'bronze') { pts = isExact ? 5 : (isOutcome ? 4 : 0); } 
       else if (m.sub_phase === 'final') { pts = isExact ? 6 : (isOutcome ? 5 : 0); }
 
       if (m.phase > 1 && actualH === actualA && p.penalty_winner_pred === s.pw) { pts += 1; }
-
-      if (pts > 0) { await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts }); }
+      if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
     }
 
     await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
-    alert(`Match Settled! Points calculated for ${preds.length} users.`);
-  };
-
-  const settleTotalGoals = async () => {
-    const actual = parseInt(totalGoalsActual);
-    if (isNaN(actual)) return alert("Enter actual total goals first!");
-    const { data: preds } = await supabase.from("bonus_predictions").select("*");
-    if (!preds) return;
-    let minDiff = Math.min(...preds.map(p => Math.abs(p.total_goals_guess - actual)));
-    for (const p of preds) {
-      const diff = Math.abs(p.total_goals_guess - actual);
-      const pts = diff === 0 ? 10 : (diff === minDiff ? 5 : 0);
-      if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
-    }
-    alert("Total Goals points settled for winners!");
+    alert(`Settled!`);
   };
 
   return (
     <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
-      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline tracking-tight italic"><Shield className="w-5 h-5" /> Admin Settlement</h2>
-      <div className="mb-8 p-4 bg-black/40 rounded-xl border border-white/5">
-        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Final Tournament Total Goals</p>
-        <div className="flex gap-2">
-          <input type="number" value={totalGoalsActual} onChange={(e) => setTotalGoalsActual(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 font-bold text-white outline-none focus:border-amber-400" placeholder="Final Total" />
-          <button onClick={settleTotalGoals} className="bg-amber-400 text-black px-6 rounded-lg font-black uppercase text-[10px] shadow-lg shadow-amber-400/10 hover:scale-[1.02] transition-all">Settle</button>
-        </div>
-      </div>
+      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline tracking-tight italic"><Shield className="w-5 h-5" /> Admin Panel</h2>
       <div className="space-y-4">
         {matches.filter((m: any) => !m.settled).map((m: any) => (
           <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-[10px] font-black uppercase tracking-tight">{m.home_team} vs {m.away_team}</span>
-              <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-black uppercase text-[9px] hover:scale-[1.02] transition-all italic">Settle Match</button>
+              <span className="text-[10px] font-black uppercase tracking-tight">{m.home_team} vs {m.away_team} ({m.sub_phase})</span>
+              <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-black uppercase text-[9px] italic">Settle</button>
             </div>
             <div className="flex gap-2">
-              <input type="number" placeholder="H" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-center font-bold text-white outline-none focus:border-emerald-400" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
-              <input type="number" placeholder="A" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-center font-bold text-white outline-none focus:border-emerald-400" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
+              <input type="number" placeholder="H" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
+              <input type="number" placeholder="A" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
               {m.phase > 1 && (
-                <select className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[9px] font-bold text-white outline-none focus:border-emerald-400" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
+                <select className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[9px] text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
                   <option value="">PW?</option>
                   <option value="home">{m.home_team}</option>
                   <option value="away">{m.away_team}</option>
@@ -490,21 +468,21 @@ function RulesPage() {
       <section>
         <h3 className="text-emerald-400 font-black uppercase italic mb-4 flex items-center gap-2 underline tracking-widest italic"><Globe className="w-4 h-4" /> Scoring Engine</h3>
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Group Stages</span> 1pt Outcome / 2pt Score</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">R16 & Quarters</span> 2pt Outcome / 3pt Score</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Semifinals</span> 3pt Outcome / 4pt Score</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Bronze Match</span> 4pt Outcome / 5pt Score</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">The Final</span> 5pt Outcome / 6pt Score</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Group Stage</span> 1pt / 2pt</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">R32, R16 & Quarters</span> 2pt / 3pt</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Semifinals</span> 3pt / 4pt</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Bronze Match</span> 4pt / 5pt</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">The Final</span> 5pt / 6pt</li>
         </ul>
       </section>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <section className="bg-emerald-500/5 p-6 rounded-2xl border border-emerald-500/20">
           <h3 className="text-emerald-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Penalties Bonus</h3>
-          <p className="text-xs text-slate-400 leading-relaxed italic font-medium">In knockouts, if it&apos;s a draw after 120m, get <span className="text-white font-bold">+1 bonus point</span> for the correct Penalty Winner.</p>
+          <p className="text-xs text-slate-400 leading-relaxed italic font-medium">In knockouts, get <span className="text-white font-bold">+1 bonus point</span> for the correct Penalty Winner.</p>
         </section>
         <section className="bg-amber-500/5 p-6 rounded-2xl border border-amber-500/20">
-          <h3 className="text-amber-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Total Goals Bonus</h3>
-          <p className="text-xs text-slate-400 leading-relaxed italic font-medium"><span className="text-white font-bold">10 Points</span> for exactly right. <span className="text-white font-bold">5 Points</span> for the closest guess (shared among winners).</p>
+          <h3 className="text-amber-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Tournament Goals</h3>
+          <p className="text-xs text-slate-400 leading-relaxed italic font-medium"><span className="text-white font-bold">10 Points</span> for exact match. <span className="text-white font-bold">5 Points</span> for the closest guess.</p>
         </section>
       </div>
     </div>
