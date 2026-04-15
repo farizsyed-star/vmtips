@@ -104,7 +104,7 @@ export default function WorldCupApp() {
 
       <main className="max-w-4xl mx-auto px-4 mt-8">
         {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} />}
-        {view === "bonus" && <BonusPage userId={user.id} onSaved={() => setBonusCompleted(true)} />}
+        {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => setBonusCompleted(true)} />}
         {view === "leaderboard" && <Leaderboard />}
         {view === "rules" && <RulesPage />}
         {view === "admin" && <AdminPanel matches={matches} />}
@@ -113,7 +113,7 @@ export default function WorldCupApp() {
   );
 }
 
-// --- POPUP ---
+// --- WELCOME POPUP ---
 function WelcomePopup({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl grid place-items-center p-6">
@@ -141,7 +141,7 @@ function NavBtn({ active, onClick, label }: any) {
   );
 }
 
-// --- MATCH LIST (EXACT ROUND NAMES) ---
+// --- MATCH LIST ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   
@@ -182,9 +182,6 @@ function MatchList({ matches, tab, setTab, userId }: any) {
 
       <div className="grid gap-4">
         {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
-        {!isPending && filtered.length === 0 && (
-          <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">Wait for bracket to decide...</div>
-        )}
       </div>
     </>
   );
@@ -243,42 +240,56 @@ function MatchCard({ match, userId, locked, isPending }: any) {
   );
 }
 
-// --- BONUS PAGE (EXACT COPY + GOAL RUSH UPDATED) ---
-function BonusPage({ userId, onSaved }: { userId: string, onSaved: () => void }) {
-  const locked = new Date() > TOURNAMENT_START;
+// --- BONUS PAGE (STRICT LOCKING) ---
+function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isCompleted: boolean, onSaved: () => void }) {
+  // Lock logic: either tournament started OR user already submitted
+  const isPermanentlyLocked = (new Date() > TOURNAMENT_START) || isCompleted;
+  
   const [form, setForm] = useState({ scorer: "", assister: "", cards: "", mvp: "", goals: "" });
-  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from("bonus_predictions").select("*").eq("user_id", userId).single().then(({ data }) => data && setForm({ scorer: data.top_scorer, assister: data.top_assister, cards: data.most_cards_team, mvp: data.mvp, goals: data.total_goals_guess?.toString() || "" }));
+    supabase.from("bonus_predictions").select("*").eq("user_id", userId).single().then(({ data }) => {
+      if (data) setForm({ scorer: data.top_scorer, assister: data.top_assister, cards: data.most_cards_team, mvp: data.mvp, goals: data.total_goals_guess?.toString() || "" });
+      setLoading(false);
+    });
   }, [userId]);
 
   const save = async () => {
-    if (locked || !form.goals) return;
+    if (isPermanentlyLocked || !form.goals) return;
     const { error } = await supabase.from("bonus_predictions").upsert({ user_id: userId, top_scorer: form.scorer, top_assister: form.assister, most_cards_team: form.cards, mvp: form.mvp, total_goals_guess: parseInt(form.goals) });
-    if (!error) { setSaved(true); onSaved(); setTimeout(() => setSaved(false), 2000); }
+    if (!error) onSaved();
   };
+
+  if (loading) return null;
 
   return (
     <div className="space-y-6">
       <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Predictions Lock In" />
       <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12">
-        <h2 className="text-emerald-400 font-black text-4xl mb-2 uppercase italic tracking-tighter">Bonus Predictions</h2>
+        <div className="flex justify-between items-start mb-2">
+          <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter">Bonus Predictions</h2>
+          {isPermanentlyLocked && <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse"><Lock className="w-3 h-3"/> Locked</span>}
+        </div>
         <p className="text-slate-400 text-sm font-bold mb-12 uppercase tracking-widest italic leading-relaxed">Put your football brain to the test and predict the following:</p>
+        
         <div className="space-y-10">
-          <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={locked} />
-          <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={locked} />
+          <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
+          <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={isPermanentlyLocked} />
+          
           <div>
             <div className="flex justify-between items-center mb-3 ml-1">
               <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Card Magnets: Which team will collect the most cards?</p>
               <span className="text-[10px] font-black text-emerald-400 whitespace-nowrap">5 points</span>
             </div>
-            <select disabled={locked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer">
+            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
               <option value="">Select Country</option>
               {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <BonusField label="Tournament MVP: Who will be crowned the player of the tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={locked} />
+
+          <BonusField label="Tournament MVP: Who will be crowned the player of the tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
+          
           <div>
             <div className="flex justify-between items-end mb-3 ml-1">
               <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Goal Rush: How many goals will be scored in total during the tournament? (including extra time, excluding penalty shootouts)</p>
@@ -286,12 +297,16 @@ function BonusPage({ userId, onSaved }: { userId: string, onSaved: () => void })
                 Closest guess: 5 points <br/> Exactly right: 10 points
               </div>
             </div>
-            <input type="number" value={form.goals} disabled={locked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
-              className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic"
+            <input type="number" value={form.goals} disabled={isPermanentlyLocked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+              className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50"
             />
           </div>
-          {!locked && <button onClick={save} className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase mt-6 shadow-lg shadow-emerald-500/20 hover:scale-[1.01] transition-all italic tracking-[0.2em]">Save & Unlock Matches</button>}
-          {saved && <p className="text-center text-[10px] text-emerald-400 font-black italic mt-6 uppercase animate-bounce">Success! Match schedule is now unlocked.</p>}
+
+          {!isPermanentlyLocked ? (
+            <button onClick={save} className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase mt-6 shadow-lg shadow-emerald-500/20 hover:scale-[1.01] transition-all italic tracking-[0.2em]">Save & Unlock Matches</button>
+          ) : (
+            <div className="w-full bg-white/5 border border-white/10 text-slate-500 py-5 rounded-2xl font-black uppercase mt-6 text-center italic text-xs tracking-widest">Predictions are permanently locked</div>
+          )}
         </div>
       </div>
     </div>
@@ -306,7 +321,7 @@ function BonusField({ label, points, value, onChange, disabled, type="text" }: a
         <span className="text-[10px] font-black text-emerald-400 whitespace-nowrap">{points}</span>
       </div>
       <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => type === 'number' && (e.key === '-' || e.key === 'e') && e.preventDefault()}
-        className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic"
+        className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50"
       />
     </div>
   );
@@ -337,7 +352,7 @@ function CountdownTimer({ targetDate, label, isPending }: any) {
     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6 shadow-lg shadow-emerald-500/5">
       <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
       {isPending ? (
-        <span className="text-slate-500 font-black uppercase text-xs italic tracking-widest flex items-center gap-2"><Lock className="w-3 h-3" /> Awaiting Bracket Stage</span>
+        <span className="text-slate-500 font-black uppercase text-xs italic tracking-widest flex items-center gap-2"><Lock className="w-3 h-3" /> Awaiting Previous Phase</span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm italic tracking-widest flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Locked</span>
       ) : timeLeft ? (
