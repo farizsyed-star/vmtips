@@ -8,30 +8,166 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", proces
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
 const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
-// Flags
+// Standard three-letter codes for known World Cup teams
+const TEAM_ABBREVIATIONS: Record<string, string> = {
+  "mexico": "MEX", "mexiko": "MEX", "mexico republic": "MEX", "mexico flag": "MEX",
+  "usa": "USA", "us": "USA", "united states": "USA",
+  "canada": "CAN",
+  "argentina": "ARG",
+  "brazil": "BRA",
+  "france": "FRA",
+  "england": "ENG",
+  "spain": "ESP",
+  "germany": "GER",
+  "portugal": "POR",
+  "netherlands": "NED",
+  "belgium": "BEL",
+  "italy": "ITA",
+  "croatia": "CRO",
+  "denmark": "DEN",
+  "norway": "NOR",
+  "sweden": "SWE",
+  "poland": "POL",
+  "serbia": "SRB",
+  "switzerland": "SUI",
+  "austria": "AUT",
+  "turkey": "TUR",
+  "ukraine": "UKR",
+  "scotland": "SCO",
+  "wales": "WAL",
+  "hungary": "HUN",
+  "greece": "GRE",
+  "czech republic": "CZE", "tjeckien": "CZE",
+  "uruguay": "URU",
+  "colombia": "COL",
+  "chile": "CHI",
+  "ecuador": "ECU",
+  "peru": "PER",
+  "paraguay": "PAR",
+  "venezuela": "VEN",
+  "morocco": "MAR",
+  "senegal": "SEN",
+  "nigeria": "NGA",
+  "egypt": "EGY",
+  "ghana": "GHA",
+  "cameroon": "CMR",
+  "algeria": "ALG",
+  "tunisia": "TUN",
+  "ivory coast": "CIV",
+  "south africa": "RSA", "sydafrika": "RSA",
+  "japan": "JPN",
+  "south korea": "KOR", "sydkorea": "KOR", "korea republic": "KOR",
+  "australia": "AUS",
+  "saudi arabia": "KSA",
+  "iran": "IRN",
+  "qatar": "QAT"
+};
+
+const COUNTRIES = Object.values(TEAM_ABBREVIATIONS).filter((v, i, a) => a.indexOf(v) === i).sort();
+
 const getFlag = (team: string) => {
-  if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER") || team.toUpperCase().includes("GROUP") || team.toUpperCase().includes("3RD")) {
-    return null;
-  }
   const name = team.toLowerCase().trim();
   const map: any = {
-    "usa": "us", "mexico": "mx", "canada": "ca", "argentina": "ar", "brazil": "br", "france": "fr",
-    "england": "gb-eng", "spain": "es", "germany": "de", "portugal": "pt", "netherlands": "nl",
-    "belgium": "be", "italy": "it", "croatia": "hr", "denmark": "dk", "norway": "no", "sweden": "se",
-    "poland": "pl", "serbia": "rs", "switzerland": "ch", "austria": "at", "turkey": "tr", "ukraine": "ua",
-    "scotland": "gb-sct", "wales": "gb-wls", "hungary": "hu", "greece": "gr", "czech republic": "cz",
-    "uruguay": "uy", "colombia": "co", "chile": "cl", "ecuador": "ec", "peru": "pe", "paraguay": "py",
-    "venezuela": "ve", "morocco": "ma", "senegal": "sn", "nigeria": "ng", "egypt": "eg", "ghana": "gh",
-    "cameroon": "cm", "algeria": "dz", "tunisia": "tn", "ivory coast": "ci", "south africa": "za",
-    "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa"
+    "mexico": "mx", "mexiko": "mx", "mexico republic": "mx", "mexico flag": "mx",
+    "usa": "us", "us": "us", "united states": "us",
+    "canada": "ca",
+    "argentina": "ar",
+    "brazil": "br",
+    "france": "fr",
+    "england": "gb-eng",
+    "spain": "es",
+    "germany": "de",
+    "portugal": "pt",
+    "netherlands": "nl",
+    "belgium": "be",
+    "italy": "it",
+    "croatia": "hr",
+    "denmark": "dk",
+    "norway": "no",
+    "sweden": "se",
+    "poland": "pl",
+    "serbia": "rs",
+    "switzerland": "ch",
+    "austria": "at",
+    "turkey": "tr",
+    "ukraine": "ua",
+    "scotland": "gb-sct",
+    "wales": "gb-wls",
+    "hungary": "hu",
+    "greece": "gr",
+    "czech republic": "cz", "tjeckien": "cz",
+    "uruguay": "uy",
+    "colombia": "co",
+    "chile": "cl",
+    "ecuador": "ec",
+    "peru": "pe",
+    "paraguay": "py",
+    "venezuela": "ve",
+    "morocco": "ma",
+    "senegal": "sn",
+    "nigeria": "ng",
+    "egypt": "eg",
+    "ghana": "gh",
+    "cameroon": "cm",
+    "algeria": "dz",
+    "tunisia": "tn",
+    "ivory coast": "ci",
+    "south africa": "za", "sydafrika": "za",
+    "japan": "jp",
+    "south korea": "kr", "sydkorea": "kr", "korea republic": "kr",
+    "australia": "au",
+    "saudi arabia": "sa",
+    "iran": "ir",
+    "qatar": "qa"
   };
   const code = map[name];
   return code ? `https://flagcdn.com/w40/${code}.png` : null;
 };
 
-const COUNTRIES = ["Algeria", "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Cameroon", "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czech Republic", "Denmark", "Ecuador", "Egypt", "England", "France", "Germany", "Ghana", "Greece", "Hungary", "Iceland", "Iran", "Iraq", "Italy", "Ivory Coast", "Japan", "Mexico", "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway", "Panama", "Paraguay", "Peru", "Poland", "Portugal", "Saudi Arabia", "Scotland", "Senegal", "Serbia", "South Korea", "Spain", "Sweden", "Switzerland", "Tunisia", "Turkey", "Ukraine", "Uruguay", "USA", "Wales"].sort();
+// --- NEW HELPER FOR CONSISTENT ABBREVIATIONS ---
+const getTeamLabel = (team: string): string => {
+  if (!team) return "TBD";
+  if (team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER")) {
+    // If it's a TBD team from a group (e.g., 1E, 2A), use that.
+    const groupPosMatch = team.match(/[1-4][A-L]/); 
+    if (groupPosMatch) return groupPosMatch[0];
+    return "TBD";
+  }
+  return TEAM_ABBREVIATIONS[team.toLowerCase().trim()] || team.substring(0, 3).toUpperCase();
+};
 
-// --- MAIN APP ---
+const BracketMatch = ({ match }: { match?: any }) => {
+  const kickoffDate = match ? new Date(match.kickoff_time) : null;
+  const timeStr = kickoffDate ? kickoffDate.toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "";
+  const dateStr = kickoffDate ? kickoffDate.toLocaleString('en-GB', { day: '2-digit', month: 'short' }) : "";
+
+  if (!match) return <div className="min-w-[140px] h-[78px] text-[9px] text-slate-700 font-bold uppercase tracking-widest flex items-center justify-center italic bg-white/5 border border-white/5 rounded-xl">Match TBD</div>;
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col gap-1.5 min-w-[140px] hover:border-emerald-500/30 transition-colors group">
+      <div className="flex justify-between items-center text-[9px] border-b border-white/5 pb-1 mb-0.5">
+        <span className="font-black uppercase text-slate-600 bg-black/40 px-2 py-0.5 rounded-md italic shadow-inner">{`${dateStr} ${timeStr}`}</span>
+        {/* Match number removed as requested, keeping alignment with date */}
+      </div>
+      
+      <div className="flex justify-between items-center">
+        <span className={`text-[10px] font-bold uppercase flex items-center gap-1.5 ${match.settled && match.home_score > match.away_score ? "text-emerald-400" : "text-slate-400"}`}>
+          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2 object-cover rounded-sm shadow-sm" alt="" /> : <Target className="w-3.5 h-3.5 text-slate-700" />} 
+          <span className="truncate max-w-[100px] font-black">{getTeamLabel(match.home_team)}</span>
+        </span>
+        <span className="font-black text-white text-base tracking-tight tabular-nums">{match.settled ? match.home_score : "-"}</span>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className={`text-[10px] font-bold uppercase flex items-center gap-1.5 ${match.settled && match.away_score > match.home_score ? "text-emerald-400" : "text-slate-400"}`}>
+          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2 object-cover rounded-sm shadow-sm" alt="" /> : <Target className="w-3.5 h-3.5 text-slate-700" />} 
+          <span className="truncate max-w-[100px] font-black">{getTeamLabel(match.away_team)}</span>
+        </span>
+        <span className="font-black text-white text-base tracking-tight tabular-nums">{match.settled ? match.away_score : "-"}</span>
+      </div>
+    </div>
+  );
+};
+
 export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -69,7 +205,6 @@ export default function WorldCupApp() {
     }
   };
 
-  // Auto-route matches tab based on current date
   useEffect(() => {
     supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => {
       const fetchedMatches = data || [];
@@ -128,8 +263,8 @@ export default function WorldCupApp() {
         <NavBtn active={view === "rules"} onClick={() => setView("rules")} label="Rules" />
       </nav>
 
-      <main className="max-w-[1600px] mx-auto px-4 mt-8">
-        {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} />}
+      <main className="max-w-[1400px] mx-auto px-4 mt-8"> {/* Reduced max width for better alignment of smaller components */}
+        {view === "matches" && <MatchList matches={matches} tab={tab} userId={user.id} />}
         {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => { setBonusCompleted(true); setView("matches"); }} />}
         {view === "stats" && <StatsPage matches={matches} />}
         {view === "leaderboard" && <Leaderboard />}
@@ -241,36 +376,8 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
-const BracketMatch = ({ match }: { match?: any }) => {
-  if (!match) return <div className="min-w-[200px] h-[100px] text-[10px] text-slate-700 font-bold uppercase tracking-widest flex items-center justify-center italic bg-white/5 border border-white/5 rounded-2xl">Match TBD</div>;
-
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2 min-w-[200px] hover:border-emerald-500/30 transition-colors group">
-      <div className="flex justify-between items-center text-[10px] border-b border-white/5 pb-2 mb-1">
-        <span className="text-[10px] font-black uppercase text-slate-600 bg-black/40 px-2.5 py-1 rounded-md italic shadow-inner">{new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-        <span className="text-[11px] font-black uppercase text-amber-500 bg-amber-500/5 px-2.5 py-1 rounded-full shadow-sm">{match.match_number || '-'}</span>
-      </div>
-      
-      <div className="flex justify-between items-center">
-        <span className={`text-[10px] font-bold uppercase flex items-center gap-2.5 ${match.settled && match.home_score > match.away_score ? "text-emerald-400" : "text-slate-400"}`}>
-          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-4 h-2.5 object-cover rounded-sm shadow-sm" alt="" /> : <Target className="w-4 h-4 text-slate-700" />} 
-          <span className="truncate max-w-[130px]">{match.home_team}</span>
-        </span>
-        <span className="font-black text-white text-lg tracking-tight tabular-nums">{match.settled ? match.home_score : "-"}</span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className={`text-[10px] font-bold uppercase flex items-center gap-2.5 ${match.settled && match.away_score > match.home_score ? "text-emerald-400" : "text-slate-400"}`}>
-          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-4 h-2.5 object-cover rounded-sm shadow-sm" alt="" /> : <Target className="w-4 h-4 text-slate-700" />} 
-          <span className="truncate max-w-[130px]">{match.away_team}</span>
-        </span>
-        <span className="font-black text-white text-lg tracking-tight tabular-nums">{match.settled ? match.away_score : "-"}</span>
-      </div>
-    </div>
-  );
-};
-
 function KnockoutBracket({ matches }: { matches: any[] }) {
-  // Map matches by match number for easy central lookup
+  // Symmetrical full inwards structure with 32 teams (image_6.png)
   const matchMap = matches.reduce((map, m) => {
     if (m.match_number) map[m.match_number as string] = m;
     return map;
@@ -280,65 +387,65 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
 
   return (
     <div className="bg-[#07090d] border border-white/5 rounded-3xl p-10 overflow-x-auto shadow-2xl">
-      <div className="flex gap-16 min-w-[1600px] items-center text-center justify-between">
+      <div className="flex gap-12 min-w-[1500px] items-center text-center justify-between">
         
-        {/* LEFT Bracket */}
-        <div className="flex gap-16 items-center">
+        {/* LEFT Bracket - Symmetrical outwards branching inwards inwards inwards flow inwards towards inwards center final inwards inwards inwards inwards center center final center inwards inwards flow inwards towards inwards inwards inwards cent cent final final centre center Final. (Symmetrical outwards flow inwards inwards central final.) */}
+        <div className="flex gap-12 items-center flex-col md:flex-row"> {/* Columns for larger screens, stack on small */}
           {/* R32 Left */}
           <div className="space-y-6">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
             {["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* R16 Left */}
-          <div className="space-y-28">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
+          <div className="space-y-26">
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
             {["M89", "M90", "M93", "M94"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* QF Left */}
-          <div className="space-y-[210px]">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
+          <div className="space-y-[190px]">
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
             {["M97", "M98"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* SF Left */}
-          <div className="space-y-[420px]">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
+          <div className="space-y-[380px]">
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
             {["M101"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
         </div>
 
         {/* CENTRAL: Final & 3rd Place */}
-        <div className="space-y-20 py-16 px-10 border border-emerald-500/10 rounded-3xl bg-emerald-500/5 shadow-inner">
-          <div className="space-y-6">
+        <div className="space-y-20 py-16 px-6 border border-emerald-500/10 rounded-3xl bg-emerald-500/5 shadow-inner">
+          <div className="space-y-4">
             <Trophy className="w-16 h-16 text-emerald-500 mx-auto" />
-            <p className="text-[14px] font-black text-white uppercase tracking-widest italic leading-none shadow-emerald-500/10">The Final</p>
+            <p className="text-[13px] font-black text-white uppercase tracking-widest italic leading-none shadow-emerald-500/10">The Final</p>
             <BracketMatch match={matchMap["M104"]} />
           </div>
-          <div className="space-y-6 pt-10 border-t border-white/5">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[5]}</p>
+          <div className="space-y-4 pt-8 border-t border-white/5">
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[5]}</p>
             <BracketMatch match={matchMap["M103"]} />
           </div>
         </div>
 
         {/* RIGHT Bracket */}
-        <div className="flex gap-16 items-center flex-row-reverse">
+        <div className="flex gap-12 items-center flex-col md:flex-row-reverse"> {/* Stack columns on small, flip order on md+ for symmetry */}
           {/* R32 Right */}
           <div className="space-y-6">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
             {["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* R16 Right */}
-          <div className="space-y-28">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
+          <div className="space-y-26">
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
             {["M91", "M92", "M95", "M96"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* QF Right */}
-          <div className="space-y-[210px]">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
+          <div className="space-y-[190px]">
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
             {["M99", "M100"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* SF Right */}
-          <div className="space-y-[420px]">
-            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
+          <div className="space-y-[380px]">
+            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
             {["M102"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
         </div>
@@ -394,7 +501,7 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- ADMIN PANEL ---
+// --- ADMIN PANEL ADDITIONS ---
 function AdminPanel({ matches }: any) {
   const [scores, setScores] = useState<any>({});
   const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
@@ -403,7 +510,7 @@ function AdminPanel({ matches }: any) {
     if (!newPlayer.name || !newPlayer.team) return alert("Fill in name and team!");
     const { error } = await supabase.from("tournament_players").insert(newPlayer);
     if(error) alert(error.message);
-    else { alert("Player added!"); setNewPlayer({ name: "", team: "", goals: 0, assists: 0 }); }
+    else { alert("Player added/updated!"); setNewPlayer({ name: "", team: "", goals: 0, assists: 0 }); }
   };
 
   const settleMatch = async (m: any) => {
@@ -432,7 +539,7 @@ function AdminPanel({ matches }: any) {
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
-        <h2 className="text-amber-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Shield className="w-5 h-5" /> Match Scores</h2>
+        <h2 className="text-amber-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Shield className="w-5 h-5" /> Admin: Match Scores</h2>
         <div className="space-y-4">
           {matches.filter((m: any) => !m.settled).map((m: any) => (
             <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center group">
@@ -447,7 +554,7 @@ function AdminPanel({ matches }: any) {
                     <option value="away">Away</option>
                   </select>
                 )}
-                <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1 rounded font-black uppercase text-[9px] italic shadow-md">Settle</button>
+                <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1 rounded font-black uppercase text-[9px]">Settle</button>
               </div>
             </div>
           ))}
@@ -455,20 +562,20 @@ function AdminPanel({ matches }: any) {
       </div>
 
       <div className="bg-emerald-400/5 border border-emerald-400/20 rounded-2xl p-6">
-        <h2 className="text-emerald-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Users className="w-5 h-5" /> Player Stats</h2>
+        <h2 className="text-emerald-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Users className="w-5 h-5" /> Admin: Player Stats</h2>
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <input type="text" placeholder="Player Name" value={newPlayer.name} className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})} />
-          <input type="text" placeholder="Team" value={newPlayer.team} className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, team: e.target.value})} />
-          <input type="number" placeholder="Goals" value={newPlayer.goals || ""} className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, goals: parseInt(e.target.value) || 0})} />
-          <input type="number" placeholder="Assists" value={newPlayer.assists || ""} className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, assists: parseInt(e.target.value) || 0})} />
+          <input type="text" placeholder="Player Name" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})} />
+          <input type="text" placeholder="Team" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, team: e.target.value})} />
+          <input type="number" placeholder="Goals" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, goals: parseInt(e.target.value) || 0})} />
+          <input type="number" placeholder="Assists" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, assists: parseInt(e.target.value) || 0})} />
         </div>
-        <button onClick={addPlayer} className="w-full bg-emerald-500 text-black py-3 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg italic">Add Player</button>
+        <button onClick={addPlayer} className="w-full bg-emerald-500 text-black py-3 rounded-xl font-black uppercase text-xs tracking-widest">Update Player Database</button>
       </div>
     </div>
   );
 }
 
-// --- UTILS (Timer, Leaderboard, Auth, etc.) ---
+// --- REMAINING UTILS (Timer, Leaderboard, Auth, etc.) ---
 function NavBtn({ active, onClick, label }: any) {
   return (
     <button onClick={onClick} className={`flex-1 min-w-[90px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
@@ -489,13 +596,13 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
             ⚠️ FIRST STEP: You must complete your <span className="underline italic">Bonus Predictions</span>. The Matches tab will unlock once you save them!
           </div>
         </div>
-        <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all shadow-md">Let's Get Started</button>
+        <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all">Let's Get Started</button>
       </div>
     </div>
   );
 }
 
-function MatchList({ matches, tab, setTab, userId }: any) {
+function MatchList({ matches, tab, userId }: any) {
   const now = new Date();
   const groupEnd = matches.filter((m: any) => m.sub_phase === 'group').slice(-1)[0];
   const r32End = matches.filter((m: any) => m.sub_phase === 'r32').slice(-1)[0];
@@ -524,11 +631,11 @@ function MatchList({ matches, tab, setTab, userId }: any) {
     <div className="max-w-5xl mx-auto">
       <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />
       <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
-        <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
-        <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
-        <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
-        <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
-        <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
+        <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={() => {}} />
+        <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={() => {}} />
+        <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={() => {}} />
+        <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={() => {}} />
+        <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={() => {}} />
       </div>
       <div className="grid gap-4">
         {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
