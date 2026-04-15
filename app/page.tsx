@@ -20,7 +20,8 @@ const TEAM_ABBREVIATIONS: Record<string, string> = {
   "venezuela": "VEN", "morocco": "MAR", "senegal": "SEN", "nigeria": "NGA", "egypt": "EGY",
   "ghana": "GHA", "cameroon": "CMR", "algeria": "ALG", "tunisia": "TUN", "ivory coast": "CIV",
   "south africa": "RSA", "japan": "JPN", "south korea": "KOR", "australia": "AUS",
-  "saudi arabia": "KSA", "iran": "IRN", "qatar": "QAT"
+  "saudi arabia": "KSA", "iran": "IRN", "qatar": "QAT", "costa rica": "CRC", "iceland": "ISL", 
+  "iraq": "IRQ", "new zealand": "NZL", "panama": "PAN"
 };
 
 const COUNTRIES = Object.values(TEAM_ABBREVIATIONS).filter((v, i, a) => a.indexOf(v) === i).sort();
@@ -48,7 +49,8 @@ const getFlag = (team: any) => {
     "uruguay": "uy", "colombia": "co", "chile": "cl", "ecuador": "ec", "peru": "pe", "paraguay": "py",
     "venezuela": "ve", "morocco": "ma", "senegal": "sn", "nigeria": "ng", "egypt": "eg", "ghana": "gh",
     "cameroon": "cm", "algeria": "dz", "tunisia": "tn", "ivory coast": "ci", "south africa": "za",
-    "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa"
+    "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa",
+    "costa rica": "cr", "iceland": "is", "iraq": "iq", "new zealand": "nz", "panama": "pa"
   };
   const code = map[name];
   return code ? `https://flagcdn.com/w40/${code}.png` : null;
@@ -266,15 +268,20 @@ function StandingsTable({ matches }: { matches: any[] }) {
 // Compact Bracket Match Box with Date/Time INSIDE
 const BracketMatch = ({ match }: { match?: any }) => {
   const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
-  // Format sv-SE enforces 24-hour clock formatting (e.g. 18:00)
   const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : "--:--";
   const dateStr = kickoffDate ? kickoffDate.toLocaleDateString('en-GB', { month: 'short', day: '2-digit' }) : "TBD";
 
   const hWin = match?.settled && (match.home_score > match.away_score || match.penalty_winner_actual === 'home');
   const aWin = match?.settled && (match.away_score > match.home_score || match.penalty_winner_actual === 'away');
 
+  if (!match) return (
+    <div className="relative flex justify-center items-center w-[130px] h-[56px] bg-[#1a1d24]/30 border border-white/5 rounded-lg">
+      <span className="text-[9px] font-black text-slate-700 italic uppercase tracking-widest">Match TBD</span>
+    </div>
+  );
+
   return (
-    <div className={`flex flex-col justify-between w-[130px] h-[56px] bg-[#1a1d24] border ${match?.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-lg hover:border-emerald-500/50 transition-colors shadow-lg px-2 py-1`}>
+    <div className={`relative flex flex-col justify-between w-[130px] h-[56px] bg-[#1a1d24] border ${match?.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-lg hover:border-emerald-500/50 transition-colors shadow-lg px-2 py-1 z-10`}>
       {/* Top Row: Date & Swedish Time */}
       <div className="w-full flex justify-between items-center mb-0.5">
         <span className="text-[7.5px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
@@ -331,7 +338,7 @@ const SingleLine = ({ height }: { height: number }) => (
 );
 
 function KnockoutBracket({ matches }: { matches: any[] }) {
-  // Chronological Mapping bypasses the need for the user to have a match_number column!
+  // Chronological Mapping
   const r32 = (matches || []).filter(m => m.sub_phase === 'r32').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const r16 = (matches || []).filter(m => m.sub_phase === 'r16').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const qf = (matches || []).filter(m => m.sub_phase === 'quarter').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
@@ -339,7 +346,6 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
   const bronze = (matches || []).find(m => m.sub_phase === 'bronze');
   const final = (matches || []).find(m => m.sub_phase === 'final');
 
-  // Automatically map the matches exactly as FIFA schedules them
   const matchMap: Record<string, any> = {
     "M73": r32[0], "M74": r32[1], "M75": r32[2], "M76": r32[3],
     "M77": r32[4], "M78": r32[5], "M79": r32[6], "M80": r32[7],
@@ -429,7 +435,7 @@ function TopPerformers({ players }: { players: any[] }) {
   const assisters = [...players].sort((a, b) => b.assists - a.assists).slice(0, 10);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
       <section className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-lg">
         <h3 className="p-6 text-xl font-black text-emerald-400 uppercase italic flex items-center gap-3">
           <Goal className="w-6 h-6" /> Golden Boot
