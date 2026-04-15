@@ -10,7 +10,7 @@ const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
 // Extensive Flag Mapping
 const getFlag = (team: string) => {
-  if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER") || team.toUpperCase().includes("GROUP")) {
+  if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER") || team.toUpperCase().includes("GROUP") || team.toUpperCase().includes("3RD")) {
     return null;
   }
   const name = team.toLowerCase().trim();
@@ -168,7 +168,7 @@ function NavBtn({ active, onClick, label }: any) {
   );
 }
 
-// --- UPDATED 5-ROUND SEQUENTIAL MATCH LIST ---
+// --- SEQUENTIAL 5-ROUND MATCH LIST ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   
@@ -211,18 +211,18 @@ function MatchList({ matches, tab, setTab, userId }: any) {
     filtered = matches.filter((m: any) => m.sub_phase === 'bronze' || m.sub_phase === 'final');
   }
 
-  const labels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals"];
+  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals"];
 
   return (
     <>
-      <CountdownTimer targetDate={lockTime} label={`Locking ${labels[tab]} in`} isPending={isPending} />
+      <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />
       
       <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
         <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
         <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
         <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
-        <PhaseTab id={4} label="QF & SF" active={tab === 4} onClick={setTab} />
-        <PhaseTab id={5} label="G & B Finals" active={tab === 5} onClick={setTab} />
+        <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
+        <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
       </div>
 
       <div className="grid gap-4">
@@ -316,6 +316,7 @@ function MatchCard({ match, userId, locked, isPending }: any) {
   );
 }
 
+// --- BONUS PAGE ---
 function BonusPage({ userId }: any) {
   const locked = new Date() > TOURNAMENT_START;
   const [form, setForm] = useState({ scorer: "", assister: "", cards: "", mvp: "", goals: "" });
@@ -372,6 +373,7 @@ function BonusField({ label, value, onChange, disabled, type="text" }: any) {
   );
 }
 
+// --- LEADERBOARD & SETTLEMENT ---
 function Leaderboard() {
   const [list, setList] = useState([]);
   useEffect(() => {
@@ -410,7 +412,6 @@ function AdminPanel({ matches }: any) {
       const isExact = p.pred_home === actH && p.pred_away === actA;
       const isOutcome = (Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA));
       
-      // Point Tiers for 5-stage setup
       if (m.sub_phase === 'group') { pts = isExact ? 2 : (isOutcome ? 1 : 0); } 
       else if (['r32', 'r16', 'quarter'].includes(m.sub_phase)) { pts = isExact ? 3 : (isOutcome ? 2 : 0); } 
       else if (m.sub_phase === 'semi') { pts = isExact ? 4 : (isOutcome ? 3 : 0); } 
@@ -421,7 +422,7 @@ function AdminPanel({ matches }: any) {
       if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
     }
     await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
-    alert(`Settled!`);
+    alert(`Match Settled!`);
   };
 
   return (
