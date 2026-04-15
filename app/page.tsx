@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target } from "lucide-react";
+import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
@@ -25,9 +25,10 @@ const TEAM_ABBREVIATIONS: Record<string, string> = {
 
 const COUNTRIES = Object.values(TEAM_ABBREVIATIONS).filter((v, i, a) => a.indexOf(v) === i).sort();
 
-const getTeamLabel = (team: string): string => {
-  if (!team) return "TBD";
-  if (team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER")) {
+const getTeamLabel = (team: any): string => {
+  if (!team || typeof team !== 'string') return "TBD";
+  const t = team.toUpperCase();
+  if (t.includes("WINNER") || t.includes("RUNNER") || t.includes("TBA") || t.includes("LOSER")) {
     const groupPosMatch = team.match(/[1-4][A-L]/); 
     if (groupPosMatch) return groupPosMatch[0];
     return "TBD";
@@ -35,8 +36,9 @@ const getTeamLabel = (team: string): string => {
   return TEAM_ABBREVIATIONS[team.toLowerCase().trim()] || team.substring(0, 3).toUpperCase();
 };
 
-const getFlag = (team: string) => {
-  const name = team?.toLowerCase().trim();
+const getFlag = (team: any) => {
+  if (!team || typeof team !== 'string') return null;
+  const name = team.toLowerCase().trim();
   const map: any = {
     "usa": "us", "mexico": "mx", "canada": "ca", "argentina": "ar", "brazil": "br", "france": "fr",
     "england": "gb-eng", "spain": "es", "germany": "de", "portugal": "pt", "netherlands": "nl",
@@ -99,10 +101,10 @@ export default function WorldCupApp() {
 
       if (fetchedMatches.length > 0) {
         const now = new Date();
-        const groupEnd = new Date(fetchedMatches.filter((m: any) => m.sub_phase === 'group').slice(-1)[0]?.kickoff_time || 0);
-        const r32End = new Date(fetchedMatches.filter((m: any) => m.sub_phase === 'r32').slice(-1)[0]?.kickoff_time || 0);
-        const r16End = new Date(fetchedMatches.filter((m: any) => m.sub_phase === 'r16').slice(-1)[0]?.kickoff_time || 0);
-        const semiEnd = new Date(fetchedMatches.filter((m: any) => m.sub_phase === 'semi').slice(-1)[0]?.kickoff_time || 0);
+        const groupEnd = new Date(fetchedMatches.filter((m: any) => m?.sub_phase === 'group').slice(-1)[0]?.kickoff_time || 0);
+        const r32End = new Date(fetchedMatches.filter((m: any) => m?.sub_phase === 'r32').slice(-1)[0]?.kickoff_time || 0);
+        const r16End = new Date(fetchedMatches.filter((m: any) => m?.sub_phase === 'r16').slice(-1)[0]?.kickoff_time || 0);
+        const semiEnd = new Date(fetchedMatches.filter((m: any) => m?.sub_phase === 'semi').slice(-1)[0]?.kickoff_time || 0);
 
         if (now > semiEnd) setTab(5);
         else if (now > r16End) setTab(4);
@@ -137,7 +139,10 @@ export default function WorldCupApp() {
       </header>
 
       <nav className="max-w-5xl mx-auto px-4 mt-6 flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide">
-        <button onClick={() => bonusCompleted && setView("matches")} className={`flex-1 min-w-[110px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}>
+        <button 
+          onClick={() => bonusCompleted && setView("matches")} 
+          className={`flex-1 min-w-[110px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
+        >
           {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
         </button>
         <NavBtn active={view === "bonus"} onClick={() => setView("bonus")} label="Bonus" />
@@ -158,7 +163,7 @@ export default function WorldCupApp() {
   );
 }
 
-// --- STATS PAGE & FIFA-STYLE BRACKET ---
+// --- STATS PAGE & MATHEMATICAL BRACKET ---
 function StatsPage({ matches }: { matches: any[] }) {
   const [subTab, setSubTab] = useState(1);
   const [players, setPlayers] = useState<any[]>([]);
@@ -182,140 +187,14 @@ function StatsPage({ matches }: { matches: any[] }) {
   );
 }
 
-// Compact Bracket Match Box
-const BracketMatch = ({ match, idLabel }: { match?: any, idLabel?: string }) => {
-  const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
-  const timeStr = kickoffDate ? kickoffDate.toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "";
-  const dateStr = kickoffDate ? kickoffDate.toLocaleString('en-GB', { month: '2-digit', day: '2-digit' }) : "";
-
-  const hWin = match?.settled && (match.home_score > match.away_score || match.penalty_winner_actual === 'home');
-  const aWin = match?.settled && (match.away_score > match.home_score || match.penalty_winner_actual === 'away');
-
-  if (!match) return (
-    <div className="relative flex justify-center items-center w-28 h-[46px] bg-[#1a1d24]/30 border border-white/5 rounded-md">
-      <span className="absolute bottom-full right-1 mb-0.5 text-[7px] font-bold text-amber-500/50 tracking-widest uppercase">{idLabel}</span>
-      <span className="text-[9px] font-black text-slate-700 italic">TBD</span>
-    </div>
-  );
-
-  return (
-    <div className={`relative flex flex-col justify-center w-28 h-[46px] bg-[#1a1d24] border ${match.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-md hover:border-emerald-500/50 transition-colors z-10`}>
-      <span className="absolute bottom-full left-0 mb-0.5 text-[7px] font-bold text-slate-500 tracking-widest uppercase">{dateStr} {timeStr}</span>
-      
-      <div className="w-full flex justify-between items-center px-1.5 py-0.5 border-b border-white/5 h-1/2">
-         <div className="flex items-center gap-1.5">
-           {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-bold uppercase tracking-tight ${hWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.home_team)}</span>
-         </div>
-         <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.home_score : "-"}</span>
-      </div>
-      
-      <div className="w-full flex justify-between items-center px-1.5 py-0.5 h-1/2">
-         <div className="flex items-center gap-1.5">
-           {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-bold uppercase tracking-tight ${aWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.away_team)}</span>
-         </div>
-         <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.away_score : "-"}</span>
-      </div>
-    </div>
-  );
-};
-
-// Bracket Column Wrapper
-const MatchColumn = ({ matchIds, matchMap }: { matchIds: string[], matchMap: Record<string, any> }) => (
-  <div className="flex flex-col justify-around h-full w-28 relative z-10">
-    {matchIds.map(id => (
-       <div key={id} className="flex justify-center w-full">
-          <BracketMatch match={matchMap[id]} idLabel={id} />
-       </div>
-    ))}
-  </div>
-);
-
-// Connecting Lines
-const BracketConnector = ({ forks, direction }: { forks: number, direction: 'right' | 'left' }) => (
-  <div className="flex flex-col w-6 h-full">
-    {Array.from({ length: forks }).map((_, i) => (
-      <div key={i} className={`flex-1 flex flex-col justify-center ${direction === 'right' ? 'items-start' : 'items-end'}`}>
-         <div className={`w-1/2 h-1/2 border-t-[1.5px] border-b-[1.5px] border-white/10 relative ${direction === 'right' ? 'border-r-[1.5px] rounded-r-md' : 'border-l-[1.5px] rounded-l-md'}`}>
-            <div className={`absolute top-1/2 w-full h-[1.5px] bg-white/10 -mt-[0.75px] ${direction === 'right' ? 'left-full' : 'right-full'}`}></div>
-         </div>
-      </div>
-    ))}
-  </div>
-);
-
-const SingleLine = () => (
-  <div className="flex flex-col w-6 h-full justify-center">
-     <div className="w-full h-[1.5px] bg-white/10" />
-  </div>
-);
-
-function KnockoutBracket({ matches }: { matches: any[] }) {
-  const matchMap = matches.reduce((map, m) => {
-    if (m.match_number) map[m.match_number as string] = m;
-    return map;
-  }, {} as Record<string, any>);
-
-  return (
-    <div className="bg-[#0b0d13] border border-white/5 rounded-3xl p-6 overflow-x-auto shadow-2xl scrollbar-hide">
-      <div className="flex min-w-[1240px] mb-2 text-[8px] font-black uppercase text-slate-500 tracking-widest text-center">
-         <div className="w-28">Round of 32</div><div className="w-6" />
-         <div className="w-28">Round of 16</div><div className="w-6" />
-         <div className="w-28">Quarter-Final</div><div className="w-6" />
-         <div className="w-28">Semi-Final</div><div className="w-6" />
-         <div className="w-40"></div><div className="w-6" />
-         <div className="w-28">Semi-Final</div><div className="w-6" />
-         <div className="w-28">Quarter-Final</div><div className="w-6" />
-         <div className="w-28">Round of 16</div><div className="w-6" />
-         <div className="w-28">Round of 32</div>
-      </div>
-      <div className="flex min-w-[1240px] h-[640px] items-center justify-center">
-        {/* LEFT Bracket */}
-        <MatchColumn matchIds={["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"]} matchMap={matchMap} />
-        <BracketConnector forks={4} direction="right" />
-        <MatchColumn matchIds={["M89", "M90", "M93", "M94"]} matchMap={matchMap} />
-        <BracketConnector forks={2} direction="right" />
-        <MatchColumn matchIds={["M97", "M98"]} matchMap={matchMap} />
-        <BracketConnector forks={1} direction="right" />
-        <MatchColumn matchIds={["M101"]} matchMap={matchMap} />
-        <SingleLine />
-        
-        {/* CENTER: Final & Bronze */}
-        <div className="flex flex-col justify-center items-center h-full w-40 relative z-10 mx-1">
-           <div className="absolute top-[8%] flex flex-col items-center">
-              <Trophy className="w-12 h-12 text-emerald-500 mb-2 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-4 shadow-emerald-500/10">The Final</span>
-           </div>
-           <div className="w-full flex justify-center z-20"><BracketMatch match={matchMap["M104"]} idLabel="M104" /></div>
-           <div className="absolute bottom-[8%] flex flex-col items-center w-full">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3 border-b border-white/10 pb-1">3rd Place Match</span>
-              <BracketMatch match={matchMap["M103"]} idLabel="M103" />
-           </div>
-        </div>
-
-        {/* RIGHT Bracket */}
-        <SingleLine />
-        <MatchColumn matchIds={["M102"]} matchMap={matchMap} />
-        <BracketConnector forks={1} direction="left" />
-        <MatchColumn matchIds={["M99", "M100"]} matchMap={matchMap} />
-        <BracketConnector forks={2} direction="left" />
-        <MatchColumn matchIds={["M91", "M92", "M95", "M96"]} matchMap={matchMap} />
-        <BracketConnector forks={4} direction="left" />
-        <MatchColumn matchIds={["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"]} matchMap={matchMap} />
-      </div>
-    </div>
-  );
-}
-
-// --- REMAINING STATS COMPONENTS ---
 function StandingsTable({ matches }: { matches: any[] }) {
   const groups = ['Group A', 'Group B', 'Group C', 'Group D', 'Group E', 'Group F', 'Group G', 'Group H', 'Group I', 'Group J', 'Group K', 'Group L'];
   
   const calculateGroup = (groupName: string) => {
     const table: any = {};
-    const groupMatches = matches.filter(m => m.group_name === groupName && m.settled);
-    const groupTeams = Array.from(new Set(matches.filter(m => m.group_name === groupName).flatMap(m => [m.home_team, m.away_team])));
+    const groupMatches = (matches || []).filter(m => m?.group_name === groupName && m?.settled);
+    
+    const groupTeams = Array.from(new Set((matches || []).filter(m => m?.group_name === groupName).flatMap(m => [m?.home_team, m?.away_team]).filter(Boolean)));
     groupTeams.forEach(t => table[t as string] = { name: t, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
 
     groupMatches.forEach(m => {
@@ -323,13 +202,14 @@ function StandingsTable({ matches }: { matches: any[] }) {
       const a = table[m.away_team];
       if (!h || !a) return;
       h.p++; a.p++;
-      h.gf += m.home_score; h.ga += m.away_score;
-      a.gf += m.away_score; a.ga += m.home_score;
+      h.gf += m.home_score || 0; h.ga += m.away_score || 0;
+      a.gf += m.away_score || 0; a.ga += m.home_score || 0;
       if (m.home_score > m.away_score) { h.w++; h.pts += 3; a.l++; }
       else if (m.home_score < m.away_score) { a.w++; a.pts += 3; h.l++; }
       else { h.d++; a.d++; h.pts += 1; a.pts += 1; }
       h.gd = h.gf - h.ga; a.gd = a.gf - a.ga;
     });
+
     return Object.values(table).sort((a: any, b: any) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
   };
 
@@ -383,6 +263,151 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
+// Compact Bracket Components
+const BracketMatch = ({ match, idLabel }: { match?: any, idLabel?: string }) => {
+  const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
+  const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "";
+  const dateStr = kickoffDate ? kickoffDate.toLocaleDateString('en-GB', { month: '2-digit', day: '2-digit' }) : "";
+
+  const hWin = match?.settled && (match.home_score > match.away_score || match.penalty_winner_actual === 'home');
+  const aWin = match?.settled && (match.away_score > match.home_score || match.penalty_winner_actual === 'away');
+
+  if (!match) return (
+    <div className="relative flex justify-center items-center w-[130px] h-[52px] bg-[#1a1d24]/30 border border-white/5 rounded-lg">
+      <span className="absolute bottom-full right-2 mb-1 text-[7px] font-bold text-amber-500/50 tracking-widest uppercase">{idLabel}</span>
+      <span className="text-[9px] font-black text-slate-700 italic uppercase tracking-widest">Match TBD</span>
+    </div>
+  );
+
+  return (
+    <div className={`relative flex flex-col justify-center w-[130px] h-[52px] bg-[#12151c] border ${match.settled ? 'border-white/10' : 'border-white/5'} rounded-lg hover:border-emerald-500/50 transition-colors z-10 shadow-lg`}>
+      <span className="absolute bottom-full left-0 mb-1 text-[7px] font-bold text-slate-500 tracking-widest uppercase">{dateStr} {timeStr}</span>
+      
+      <div className="w-full flex justify-between items-center px-2 py-0.5 border-b border-white/5 h-1/2">
+         <div className="flex items-center gap-2">
+           {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[10px] font-black uppercase tracking-widest ${hWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.home_team)}</span>
+         </div>
+         <span className={`text-[11px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.home_score : "-"}</span>
+      </div>
+      
+      <div className="w-full flex justify-between items-center px-2 py-0.5 h-1/2">
+         <div className="flex items-center gap-2">
+           {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[10px] font-black uppercase tracking-widest ${aWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.away_team)}</span>
+         </div>
+         <span className={`text-[11px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.away_score : "-"}</span>
+      </div>
+    </div>
+  );
+};
+
+const MatchWrapper = ({ children, height }: { children: React.ReactNode, height: number }) => (
+  <div style={{ height: `${height}px` }} className="flex flex-col justify-center items-center w-full relative z-10">
+    {children}
+  </div>
+);
+
+const ForkRight = ({ height }: { height: number }) => (
+  <div style={{ height: `${height}px` }} className="flex flex-col justify-center items-end w-6 relative">
+     <div className="w-1/2 h-1/2 border-white/10 border-t-[1.5px] border-b-[1.5px] border-r-[1.5px] rounded-r-md relative">
+        <div className="absolute top-1/2 left-full w-3 h-[1.5px] bg-white/10 -mt-[0.75px]" />
+     </div>
+  </div>
+);
+
+const ForkLeft = ({ height }: { height: number }) => (
+  <div style={{ height: `${height}px` }} className="flex flex-col justify-center items-start w-6 relative">
+     <div className="w-1/2 h-1/2 border-white/10 border-t-[1.5px] border-b-[1.5px] border-l-[1.5px] rounded-l-md relative">
+        <div className="absolute top-1/2 right-full w-3 h-[1.5px] bg-white/10 -mt-[0.75px]" />
+     </div>
+  </div>
+);
+
+const SingleLine = ({ height }: { height: number }) => (
+  <div style={{ height: `${height}px` }} className="flex flex-col justify-center items-center w-4 relative">
+     <div className="w-full h-[1.5px] bg-white/10" />
+  </div>
+);
+
+function KnockoutBracket({ matches }: { matches: any[] }) {
+  const matchMap = (matches || []).reduce((map, m) => {
+    if (m?.match_number) map[m.match_number as string] = m;
+    return map;
+  }, {} as Record<string, any>);
+
+  const H = 70; // Base height per slot
+
+  return (
+    <div className="bg-[#0b0d14] border border-white/5 rounded-3xl p-8 overflow-x-auto shadow-2xl scrollbar-hide">
+      <div className="flex min-w-[1200px] mb-4 text-[9px] font-black uppercase text-slate-500 tracking-widest text-center justify-between">
+         <div className="w-[130px]">Round of 32</div>
+         <div className="w-[130px]">Round of 16</div>
+         <div className="w-[130px]">Quarter-Final</div>
+         <div className="w-[130px]">Semi-Final</div>
+         <div className="w-[160px] text-emerald-400/50">The Final</div>
+         <div className="w-[130px]">Semi-Final</div>
+         <div className="w-[130px]">Quarter-Final</div>
+         <div className="w-[130px]">Round of 16</div>
+         <div className="w-[130px]">Round of 32</div>
+      </div>
+      
+      {/* Core Flex Layout */}
+      <div className="flex min-w-[1200px] justify-between items-center text-center">
+        
+        {/* LEFT PATH */}
+        <div className="flex w-[130px] flex-col">
+          {["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"].map(id => <MatchWrapper key={id} height={H}><BracketMatch match={matchMap[id]} idLabel={id}/></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col">{Array(4).fill(0).map((_,i) => <ForkRight key={i} height={H*2} />)}</div>
+        <div className="flex w-[130px] flex-col">
+          {["M89", "M90", "M93", "M94"].map(id => <MatchWrapper key={id} height={H*2}><BracketMatch match={matchMap[id]} idLabel={id}/></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col">{Array(2).fill(0).map((_,i) => <ForkRight key={i} height={H*4} />)}</div>
+        <div className="flex w-[130px] flex-col">
+          {["M97", "M98"].map(id => <MatchWrapper key={id} height={H*4}><BracketMatch match={matchMap[id]} idLabel={id}/></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col"><ForkRight height={H*8} /></div>
+        <div className="flex w-[130px] flex-col">
+          {["M101"].map(id => <MatchWrapper key={id} height={H*8}><BracketMatch match={matchMap[id]} idLabel={id}/></MatchWrapper>)}
+        </div>
+        <SingleLine height={H*8} />
+
+        {/* CENTER PATH */}
+        <div className="flex flex-col justify-center items-center w-[160px] relative z-10" style={{ height: `${H*8}px` }}>
+           <div className="absolute top-[12%] flex flex-col items-center">
+              <Trophy className="w-10 h-10 text-emerald-500 mb-2 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]" />
+           </div>
+           <BracketMatch match={matchMap["M104"]} idLabel="M104" />
+           <div className="absolute bottom-[12%] flex flex-col items-center w-full">
+              <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-2 border-b border-white/5 pb-1">3rd Place Match</span>
+              <BracketMatch match={matchMap["M103"]} idLabel="M103" />
+           </div>
+        </div>
+
+        {/* RIGHT PATH */}
+        <SingleLine height={H*8} />
+        <div className="flex w-[130px] flex-col">
+          {["M102"].map(id => <MatchWrapper key={id} height={H*8}><BracketMatch match={matchMap[id]} idLabel={id}/></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col"><ForkLeft height={H*8} /></div>
+        <div className="flex w-[130px] flex-col">
+          {["M99", "M100"].map(id => <MatchWrapper key={id} height={H*4}><BracketMatch match={matchMap[id]} idLabel={id}/></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col">{Array(2).fill(0).map((_,i) => <ForkLeft key={i} height={H*4} />)}</div>
+        <div className="flex w-[130px] flex-col">
+          {["M91", "M92", "M95", "M96"].map(id => <MatchWrapper key={id} height={H*2}><BracketMatch match={matchMap[id]} idLabel={id}/></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col">{Array(4).fill(0).map((_,i) => <ForkLeft key={i} height={H*2} />)}</div>
+        <div className="flex w-[130px] flex-col">
+          {["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"].map(id => <MatchWrapper key={id} height={H}><BracketMatch match={matchMap[id]} idLabel={id}/></MatchWrapper>)}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 function TopPerformers({ players }: { players: any[] }) {
   const scorers = [...players].sort((a, b) => b.goals - a.goals).slice(0, 10);
   const assisters = [...players].sort((a, b) => b.assists - a.assists).slice(0, 10);
@@ -390,21 +415,39 @@ function TopPerformers({ players }: { players: any[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
       <section className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-lg">
-        <h3 className="p-6 text-xl font-black text-emerald-400 uppercase italic flex items-center gap-3"><Goal className="w-6 h-6" /> Golden Boot</h3>
+        <h3 className="p-6 text-xl font-black text-emerald-400 uppercase italic flex items-center gap-3">
+          <Goal className="w-6 h-6" /> Golden Boot
+        </h3>
         {scorers.length === 0 && <p className="text-center p-8 text-xs font-bold text-slate-500 uppercase tracking-widest">No stats yet.</p>}
         {scorers.map((p, i) => (
           <div key={p.id} className="px-6 py-4 flex justify-between items-center border-t border-white/5 last:border-0 hover:bg-white/5">
-            <div className="flex items-center gap-4"><span className="text-slate-600 font-black italic w-4">{i + 1}</span><div><p className="font-black text-white uppercase leading-none tracking-tight">{p.name}</p><p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{p.team}</p></div></div><span className="text-2xl font-black text-emerald-400 italic tabular-nums">{p.goals}</span>
+            <div className="flex items-center gap-4">
+              <span className="text-slate-600 font-black italic w-4">{i + 1}</span>
+              <div>
+                <p className="font-black text-white uppercase leading-none tracking-tight">{p.name}</p>
+                <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{p.team}</p>
+              </div>
+            </div>
+            <span className="text-2xl font-black text-emerald-400 italic tabular-nums">{p.goals}</span>
           </div>
         ))}
       </section>
 
       <section className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-lg">
-        <h3 className="p-6 text-xl font-black text-amber-400 uppercase italic flex items-center gap-3"><Star className="w-6 h-6" /> Assist Kings</h3>
+        <h3 className="p-6 text-xl font-black text-amber-400 uppercase italic flex items-center gap-3">
+          <Star className="w-6 h-6" /> Assist Kings
+        </h3>
         {assisters.length === 0 && <p className="text-center p-8 text-xs font-bold text-slate-500 uppercase tracking-widest">No stats yet.</p>}
         {assisters.map((p, i) => (
           <div key={p.id} className="px-6 py-4 flex justify-between items-center border-t border-white/5 last:border-0 hover:bg-white/5">
-            <div className="flex items-center gap-4"><span className="text-slate-600 font-black italic w-4">{i + 1}</span><div><p className="font-black text-white uppercase leading-none tracking-tight">{p.name}</p><p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{p.team}</p></div></div><span className="text-2xl font-black text-amber-400 italic tabular-nums">{p.assists}</span>
+            <div className="flex items-center gap-4">
+              <span className="text-slate-600 font-black italic w-4">{i + 1}</span>
+              <div>
+                <p className="font-black text-white uppercase leading-none tracking-tight">{p.name}</p>
+                <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{p.team}</p>
+              </div>
+            </div>
+            <span className="text-2xl font-black text-amber-400 italic tabular-nums">{p.assists}</span>
           </div>
         ))}
       </section>
@@ -412,215 +455,7 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- OTHER APP VIEWS (MatchList, Bonus, Admin, Leaderboard, etc.) ---
-function MatchList({ matches, tab, setTab, userId }: any) {
-  const now = new Date();
-  const groupEnd = matches.filter((m: any) => m.sub_phase === 'group').slice(-1)[0];
-  const r32End = matches.filter((m: any) => m.sub_phase === 'r32').slice(-1)[0];
-  const r16End = matches.filter((m: any) => m.sub_phase === 'r16').slice(-1)[0];
-  const sfEnd = matches.filter((m: any) => m.sub_phase === 'semi').slice(-1)[0];
-
-  const firstR32 = matches.find((m: any) => m.sub_phase === 'r32');
-  const firstR16 = matches.find((m: any) => m.sub_phase === 'r16');
-  const firstQF = matches.find((m: any) => m.sub_phase === 'quarter');
-  const firstFinal = matches.find((m: any) => m.sub_phase === 'bronze' || m.sub_phase === 'final');
-
-  let lockTime: Date | null = null;
-  let isPending = false;
-  let matchesLocked = false;
-  let filtered = [];
-
-  if (tab === 1) { lockTime = TOURNAMENT_START; matchesLocked = now > TOURNAMENT_START; filtered = matches.filter((m: any) => m.sub_phase === 'group'); } 
-  else if (tab === 2) { if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m.sub_phase === 'r32'); } 
-  else if (tab === 3) { if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m.sub_phase === 'r16'); } 
-  else if (tab === 4) { if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m.sub_phase === 'quarter' || m.sub_phase === 'semi'); } 
-  else if (tab === 5) { if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m.sub_phase === 'bronze' || m.sub_phase === 'final'); }
-
-  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals"];
-
-  return (
-    <div className="max-w-5xl mx-auto">
-      <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />
-      <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
-        <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
-        <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
-        <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
-        <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
-        <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
-      </div>
-      <div className="grid gap-4">
-        {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
-      </div>
-    </div>
-  );
-}
-
-function PhaseTab({ id, label, active, onClick }: any) {
-  return (
-    <button onClick={() => onClick(id)} className={`whitespace-nowrap pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${active ? "border-b-2 border-emerald-400 text-white" : "text-slate-600"}`}>{label}</button>
-  );
-}
-
-function MatchCard({ match, userId, locked, isPending }: any) {
-  const [pred, setPred] = useState({ h: "", a: "", pw: "" });
-  const [saved, setSaved] = useState(false);
-  useEffect(() => {
-    supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => data && setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" }));
-  }, [match.id, userId]);
-  const save = async () => {
-    if (locked || pred.h === "" || pred.a === "") return;
-    await supabase.from("predictions").upsert({ user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw }, { onConflict: 'user_id,match_id' });
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
-  };
-  return (
-    <div className={`bg-white/5 border rounded-2xl p-6 transition-all ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 leading-none">{locked && <Clock className="w-3 h-3 text-rose-500" />}{new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-          <span className="bg-white/5 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded uppercase italic">{match.group_name || match.sub_phase}</span>
-        </div>
-        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10">{match.channel}</span>
-      </div>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
-          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
-          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.home_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.home_team}</span>
-        </div>
-        <div className="flex gap-2">
-          <input type="number" min="0" disabled={locked} value={pred.h} onBlur={save} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner" placeholder="-" />
-          <input type="number" min="0" disabled={locked} value={pred.a} onBlur={save} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner" placeholder="-" />
-        </div>
-        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
-          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
-          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.away_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.away_team}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isCompleted: boolean, onSaved: () => void }) {
-  const isPermanentlyLocked = (new Date() > TOURNAMENT_START) || isCompleted;
-  const [form, setForm] = useState({ scorer: "", assister: "", cards: "", mvp: "", goals: "" });
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    supabase.from("bonus_predictions").select("*").eq("user_id", userId).single().then(({ data }) => { if (data) setForm({ scorer: data.top_scorer, assister: data.top_assister, cards: data.most_cards_team, mvp: data.mvp, goals: data.total_goals_guess?.toString() || "" }); setLoading(false); });
-  }, [userId]);
-  const save = async () => {
-    if (isPermanentlyLocked || !form.goals) return;
-    await supabase.from("bonus_predictions").upsert({ user_id: userId, top_scorer: form.scorer, top_assister: form.assister, most_cards_team: form.cards, mvp: form.mvp, total_goals_guess: parseInt(form.goals) });
-    onSaved();
-  };
-  if (loading) return null;
-  return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Predictions Lock In" />
-      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12">
-        <div className="flex justify-between items-start mb-2 border-b border-white/5 pb-4">
-          <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter shadow-emerald-500/10">Bonus Predictions</h2>
-          {isPermanentlyLocked && <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-md"><Lock className="w-3 h-3"/> Locked</span>}
-        </div>
-        <p className="text-slate-400 text-sm font-bold my-10 uppercase tracking-widest italic leading-relaxed">Put your football brain to the test and predict the following:</p>
-        <div className="space-y-10">
-          <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
-          <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={isPermanentlyLocked} />
-          <div>
-            <div className="flex justify-between items-center mb-3 ml-1"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Card Magnets: Which team will collect the most cards?</p><span className="text-[10px] font-black text-emerald-400">5 points</span></div>
-            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold disabled:opacity-50">
-              <option value="">Select Country</option>
-              {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <BonusField label="Tournament MVP: Who will be crowned player of the tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
-          <div>
-            <div className="flex justify-between items-end mb-3 ml-1">
-              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Goal Rush: How many goals will be scored in total during the tournament? (including extra time, excluding penalty shootouts)</p>
-              <div className="text-right text-[10px] font-black text-emerald-400 leading-tight whitespace-nowrap">Closest guess: 5 pts <br/> Exactly right: 10 pts</div>
-            </div>
-            <input type="number" value={form.goals} disabled={isPermanentlyLocked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
-          </div>
-          {!isPermanentlyLocked && <button onClick={save} className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase mt-6 tracking-[0.2em] shadow-lg italic">Save & Unlock Matches</button>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BonusField({ label, points, value, onChange, disabled, type="text" }: any) {
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-3 ml-1">
-        <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
-        <span className="text-[10px] font-black text-emerald-400 whitespace-nowrap pl-4">{points}</span>
-      </div>
-      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
-    </div>
-  );
-}
-
-function CountdownTimer({ targetDate, label, isPending }: any) {
-  const [timeLeft, setTimeLeft] = useState<any>(null);
-  useEffect(() => {
-    if (!targetDate || isPending) return;
-    const timer = setInterval(() => {
-      const now = new Date().getTime();
-      const distance = targetDate.getTime() - now;
-      if (distance < 0) { setTimeLeft("LOCKED"); clearInterval(timer); } 
-      else {
-        const d = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const s = Math.floor((distance % (1000 * 60)) / 1000);
-        setTimeLeft({ d, h, m, s });
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [targetDate, isPending]);
-
-  return (
-    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6 shadow-md shadow-emerald-500/5">
-      <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em] shadow-emerald-500/10">{label}</p>
-      {isPending ? (
-        <span className="text-slate-500 font-black uppercase text-xs flex items-center gap-2 tracking-[0.2em]"><Lock className="w-3 h-3" /> Waiting...</span>
-      ) : timeLeft === "LOCKED" ? (
-        <span className="text-rose-500 font-black uppercase text-sm tracking-widest animate-pulse flex items-center gap-2"><Lock className="w-4 h-4"/> Locked</span>
-      ) : timeLeft ? (
-        <div className="flex gap-4 text-white font-black italic shadow-emerald-500/10">
-          <TimeBlock unit="Days" val={timeLeft.d} /> <TimeBlock unit="Hours" val={timeLeft.h} /> <TimeBlock unit="Mins" val={timeLeft.m} /> <TimeBlock unit="Secs" val={timeLeft.s} />
-        </div>
-      ) : <span className="text-slate-600 font-black animate-pulse">...</span>}
-    </div>
-  );
-}
-
-function TimeBlock({ unit, val }: any) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-2xl leading-none tabular-nums tracking-tighter">{val.toString().padStart(2, '0')}</span>
-      <span className="text-[8px] text-slate-500 not-italic uppercase font-bold mt-1 tracking-widest">{unit}</span>
-    </div>
-  );
-}
-
-function Leaderboard() {
-  const [list, setList] = useState([]);
-  useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).then(({ data }) => setList(data as any || [])); }, []);
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden max-w-5xl mx-auto shadow-xl">
-      <div className="p-5 bg-white/5 border-b border-white/5 flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap pl-6"><span>Player / Rank</span><span>Total Points</span></div>
-      {list.map((p: any, i) => (
-        <div key={p.id} className={`p-6 flex justify-between items-center transition-colors hover:bg-white/5 ${i < 3 ? "bg-emerald-500/5" : ""}`}>
-          <div className="flex items-center gap-4">
-            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black shadow-md ${i === 0 ? "bg-amber-400 text-black shadow-amber-400/20" : i === 1 ? "bg-slate-400 text-black shadow-slate-400/20" : i === 2 ? "bg-orange-800 text-black shadow-orange-800/20" : "bg-white/10"}`}>{i + 1}</span>
-            <span className="font-black uppercase text-lg tracking-tight whitespace-nowrap">{p.username}</span>
-          </div>
-          <span className="text-amber-400 font-black text-2xl italic tabular-nums leading-none tracking-tight">{p.total_points}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
+// --- ADMIN PANEL ---
 function AdminPanel({ matches }: any) {
   const [scores, setScores] = useState<any>({});
   const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
@@ -690,6 +525,256 @@ function AdminPanel({ matches }: any) {
         </div>
         <button onClick={addPlayer} className="w-full bg-emerald-500 text-black py-3 rounded-xl font-black uppercase text-xs tracking-widest">Update Player Database</button>
       </div>
+    </div>
+  );
+}
+
+// --- REMAINING UTILS (Timer, Leaderboard, Auth, etc.) ---
+function NavBtn({ active, onClick, label }: any) {
+  return (
+    <button onClick={onClick} className={`flex-1 min-w-[90px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+      {label}
+    </button>
+  );
+}
+
+function WelcomePopup({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl grid place-items-center p-6">
+      <div className="bg-[#0f1117] border border-white/10 rounded-[2.5rem] p-10 max-w-md w-full relative shadow-2xl text-center">
+        <Sparkles className="text-amber-400 w-12 h-12 mb-6 mx-auto animate-pulse" />
+        <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none">Welcome to the <br/><span className="text-emerald-400">Cup League</span></h2>
+        <div className="space-y-4 text-slate-400 text-sm leading-relaxed">
+          <p>Predict match scores and nail your tournament bonuses to win. Correct scores earn the most points, so choose wisely!</p>
+          <div className="bg-emerald-500/10 text-emerald-400 font-bold p-4 rounded-2xl border border-emerald-500/20 text-xs uppercase tracking-tight">
+            ⚠️ FIRST STEP: You must complete your <span className="underline italic">Bonus Predictions</span>. The Matches tab will unlock once you save them!
+          </div>
+        </div>
+        <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all shadow-md">Let's Get Started</button>
+      </div>
+    </div>
+  );
+}
+
+function MatchList({ matches, tab, setTab, userId }: any) {
+  const now = new Date();
+  const groupEnd = matches.filter((m: any) => m?.sub_phase === 'group').slice(-1)[0];
+  const r32End = matches.filter((m: any) => m?.sub_phase === 'r32').slice(-1)[0];
+  const r16End = matches.filter((m: any) => m?.sub_phase === 'r16').slice(-1)[0];
+  const sfEnd = matches.filter((m: any) => m?.sub_phase === 'semi').slice(-1)[0];
+
+  const firstR32 = matches.find((m: any) => m?.sub_phase === 'r32');
+  const firstR16 = matches.find((m: any) => m?.sub_phase === 'r16');
+  const firstQF = matches.find((m: any) => m?.sub_phase === 'quarter');
+  const firstFinal = matches.find((m: any) => m?.sub_phase === 'bronze' || m?.sub_phase === 'final');
+
+  let lockTime: Date | null = null;
+  let isPending = false;
+  let matchesLocked = false;
+  let filtered = [];
+
+  if (tab === 1) { lockTime = TOURNAMENT_START; matchesLocked = now > TOURNAMENT_START; filtered = matches.filter((m: any) => m?.sub_phase === 'group'); } 
+  else if (tab === 2) { if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m?.sub_phase === 'r32'); } 
+  else if (tab === 3) { if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m?.sub_phase === 'r16'); } 
+  else if (tab === 4) { if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m?.sub_phase === 'quarter' || m?.sub_phase === 'semi'); } 
+  else if (tab === 5) { if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m?.sub_phase === 'bronze' || m?.sub_phase === 'final'); }
+
+  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals"];
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />
+      <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
+        <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
+        <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
+        <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
+        <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
+        <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
+      </div>
+      <div className="grid gap-4">
+        {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
+      </div>
+    </div>
+  );
+}
+
+function PhaseTab({ id, label, active, onClick }: any) {
+  return (
+    <button onClick={() => onClick(id)} className={`whitespace-nowrap pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${active ? "border-b-2 border-emerald-400 text-white" : "text-slate-600"}`}>{label}</button>
+  );
+}
+
+function MatchCard({ match, userId, locked, isPending }: any) {
+  const [pred, setPred] = useState({ h: "", a: "", pw: "" });
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => data && setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" }));
+  }, [match.id, userId]);
+  const save = async () => {
+    if (locked || pred.h === "" || pred.a === "") return;
+    await supabase.from("predictions").upsert({ user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw }, { onConflict: 'user_id,match_id' });
+    setSaved(true); setTimeout(() => setSaved(false), 2000);
+  };
+  return (
+    <div className={`bg-white/5 border rounded-2xl p-6 transition-all ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 leading-none">{locked && <Clock className="w-3 h-3 text-rose-500" />}{new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="bg-white/5 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded uppercase italic">{match.group_name || match.sub_phase}</span>
+          {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1 italic"><Lock className="w-2 h-2" /> View Only</span>}
+        </div>
+        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10">{match.channel}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
+          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
+          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.home_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.home_team}</span>
+        </div>
+        <div className="flex gap-2">
+          <input type="number" min="0" disabled={locked} value={pred.h} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+            onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-600" placeholder="-" />
+          <input type="number" min="0" disabled={locked} value={pred.a} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+            onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-600" placeholder="-" />
+        </div>
+        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
+          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
+          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.away_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.away_team}</span>
+        </div>
+      </div>
+      {pred.h !== "" && pred.h === pred.a && match.phase > 1 && !locked && (
+        <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
+          <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner (+1pt)</p>
+          <div className="flex gap-2 bg-black/40 p-1 rounded-xl">
+            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isCompleted: boolean, onSaved: () => void }) {
+  const isPermanentlyLocked = (new Date() > TOURNAMENT_START) || isCompleted;
+  const [form, setForm] = useState({ scorer: "", assister: "", cards: "", mvp: "", goals: "" });
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    supabase.from("bonus_predictions").select("*").eq("user_id", userId).single().then(({ data }) => { if (data) setForm({ scorer: data.top_scorer, assister: data.top_assister, cards: data.most_cards_team, mvp: data.mvp, goals: data.total_goals_guess?.toString() || "" }); setLoading(false); });
+  }, [userId]);
+  const save = async () => {
+    if (isPermanentlyLocked || !form.goals) return;
+    await supabase.from("bonus_predictions").upsert({ user_id: userId, top_scorer: form.scorer, top_assister: form.assister, most_cards_team: form.cards, mvp: form.mvp, total_goals_guess: parseInt(form.goals) });
+    onSaved();
+  };
+  if (loading) return null;
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Predictions Lock In" />
+      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12">
+        <div className="flex justify-between items-start mb-2 border-b border-white/5 pb-4">
+          <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter shadow-emerald-500/10">Bonus Predictions</h2>
+          {isPermanentlyLocked && <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-md"><Lock className="w-3 h-3"/> Locked</span>}
+        </div>
+        <p className="text-slate-400 text-sm font-bold my-10 uppercase tracking-widest italic">Put your football brain to the test and predict the following:</p>
+        <div className="space-y-10">
+          <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
+          <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={isPermanentlyLocked} />
+          <div>
+            <div className="flex justify-between items-center mb-3 ml-1"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Card Magnets: Which team will collect the most cards?</p><span className="text-[10px] font-black text-emerald-400">5 points</span></div>
+            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold disabled:opacity-50">
+              <option value="">Select Country</option>
+              {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <BonusField label="Tournament MVP: Who will be crowned player of the tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
+          <div>
+            <div className="flex justify-between items-end mb-3 ml-1">
+              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Goal Rush: How many goals will be scored in total during the tournament? (including extra time, excluding penalty shootouts)</p>
+              <div className="text-right text-[10px] font-black text-emerald-400 leading-tight whitespace-nowrap">Closest guess: 5 pts <br/> Exactly right: 10 pts</div>
+            </div>
+            <input type="number" value={form.goals} disabled={isPermanentlyLocked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
+          </div>
+          {!isPermanentlyLocked && <button onClick={save} className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase mt-6 tracking-[0.2em] shadow-lg italic">Save & Unlock Matches</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BonusField({ label, points, value, onChange, disabled, type="text" }: any) {
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-3 ml-1">
+        <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
+        <span className="text-[10px] font-black text-emerald-400 whitespace-nowrap pl-4">{points}</span>
+      </div>
+      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
+    </div>
+  );
+}
+
+function CountdownTimer({ targetDate, label, isPending }: any) {
+  const [timeLeft, setTimeLeft] = useState<any>(null);
+  useEffect(() => {
+    if (!targetDate || isPending || isNaN(targetDate.getTime())) {
+      if(!isPending && targetDate) setTimeLeft("LOCKED");
+      return;
+    }
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = targetDate.getTime() - now;
+      if (distance < 0) { setTimeLeft("LOCKED"); clearInterval(timer); } 
+      else {
+        const d = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((distance % (1000 * 60)) / 1000);
+        setTimeLeft({ d, h, m, s });
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [targetDate, isPending]);
+
+  return (
+    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6 shadow-md shadow-emerald-500/5">
+      <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em] shadow-emerald-500/10">{label}</p>
+      {isPending ? (
+        <span className="text-slate-500 font-black uppercase text-xs flex items-center gap-2 tracking-[0.2em]"><Lock className="w-3 h-3" /> Waiting...</span>
+      ) : timeLeft === "LOCKED" ? (
+        <span className="text-rose-500 font-black uppercase text-sm tracking-widest animate-pulse flex items-center gap-2"><Lock className="w-4 h-4"/> Locked</span>
+      ) : timeLeft ? (
+        <div className="flex gap-4 text-white font-black italic shadow-emerald-500/10">
+          <TimeBlock unit="Days" val={timeLeft.d} /> <TimeBlock unit="Hours" val={timeLeft.h} /> <TimeBlock unit="Mins" val={timeLeft.m} /> <TimeBlock unit="Secs" val={timeLeft.s} />
+        </div>
+      ) : <span className="text-slate-600 font-black animate-pulse">...</span>}
+    </div>
+  );
+}
+
+function TimeBlock({ unit, val }: any) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-2xl leading-none tabular-nums tracking-tighter">{val.toString().padStart(2, '0')}</span>
+      <span className="text-[8px] text-slate-500 not-italic uppercase font-bold mt-1 tracking-widest">{unit}</span>
+    </div>
+  );
+}
+
+function Leaderboard() {
+  const [list, setList] = useState([]);
+  useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).then(({ data }) => setList(data as any || [])); }, []);
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden max-w-5xl mx-auto shadow-xl">
+      <div className="p-5 bg-white/5 border-b border-white/5 flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap pl-6"><span>Player / Rank</span><span>Total Points</span></div>
+      {list.map((p: any, i) => (
+        <div key={p.id} className={`p-6 flex justify-between items-center transition-colors hover:bg-white/5 ${i < 3 ? "bg-emerald-500/5" : ""}`}>
+          <div className="flex items-center gap-4">
+            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black shadow-md ${i === 0 ? "bg-amber-400 text-black shadow-amber-400/20" : i === 1 ? "bg-slate-400 text-black shadow-slate-400/20" : i === 2 ? "bg-orange-800 text-black shadow-orange-800/20" : "bg-white/10"}`}>{i + 1}</span>
+            <span className="font-black uppercase text-lg tracking-tight whitespace-nowrap">{p.username}</span>
+          </div>
+          <span className="text-amber-400 font-black text-2xl italic tabular-nums leading-none tracking-tight">{p.total_points}</span>
+        </div>
+      ))}
     </div>
   );
 }
