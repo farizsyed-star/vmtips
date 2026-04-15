@@ -92,6 +92,7 @@ export default function WorldCupApp() {
     }
   };
 
+  // Auto-route matches tab based on current tournament date
   useEffect(() => {
     supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => {
       const fetchedMatches = data || [];
@@ -262,137 +263,167 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
-// Compact Bracket Match Box without IDs, with explicit dates and Swedish time
+// Compact Bracket Match Box with Date/Time INSIDE
 const BracketMatch = ({ match }: { match?: any }) => {
   const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
-  // Format using Swedish locale specifically to force the 24-hour clock formatting
-  const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : "";
-  const dateStr = kickoffDate ? kickoffDate.toLocaleDateString('en-GB', { month: 'short', day: '2-digit' }) : "";
+  // Format sv-SE enforces 24-hour clock formatting (e.g. 18:00)
+  const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : "--:--";
+  const dateStr = kickoffDate ? kickoffDate.toLocaleDateString('en-GB', { month: 'short', day: '2-digit' }) : "TBD";
 
   const hWin = match?.settled && (match.home_score > match.away_score || match.penalty_winner_actual === 'home');
   const aWin = match?.settled && (match.away_score > match.home_score || match.penalty_winner_actual === 'away');
 
-  if (!match) return (
-    <div className="relative flex justify-center items-center w-28 h-[46px] bg-[#1a1d24]/30 border border-white/5 rounded-md">
-      <span className="text-[9px] font-black text-slate-700 italic">TBD</span>
-    </div>
-  );
-
   return (
-    <div className={`relative flex flex-col justify-center w-28 h-[46px] bg-[#1a1d24] border ${match.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-md hover:border-emerald-500/50 transition-colors z-10`}>
-      {/* Date on the left, Swedish time on the right */}
-      <div className="absolute bottom-full left-0 w-full flex justify-between px-0.5 mb-0.5">
-        <span className="text-[7px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
-        <span className="text-[7px] font-bold text-slate-400 tracking-widest uppercase">{timeStr}</span>
+    <div className={`flex flex-col justify-between w-[130px] h-[56px] bg-[#1a1d24] border ${match?.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-lg hover:border-emerald-500/50 transition-colors shadow-lg px-2 py-1`}>
+      {/* Top Row: Date & Swedish Time */}
+      <div className="w-full flex justify-between items-center mb-0.5">
+        <span className="text-[7.5px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
+        <span className="text-[7.5px] font-black text-emerald-400/80 tracking-widest uppercase">{timeStr}</span>
       </div>
       
-      <div className="w-full flex justify-between items-center px-1.5 py-0.5 border-b border-white/5 h-1/2">
+      {/* Home Team */}
+      <div className="w-full flex justify-between items-center mb-0.5">
          <div className="flex items-center gap-1.5">
-           {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-bold uppercase tracking-tight ${hWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.home_team)}</span>
+           {getFlag(match?.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[9px] font-black uppercase tracking-widest ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.home_team)}</span>
          </div>
-         <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.home_score : "-"}</span>
+         <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.home_score : "-"}</span>
       </div>
       
-      <div className="w-full flex justify-between items-center px-1.5 py-0.5 h-1/2">
+      {/* Away Team */}
+      <div className="w-full flex justify-between items-center">
          <div className="flex items-center gap-1.5">
-           {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-bold uppercase tracking-tight ${aWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.away_team)}</span>
+           {getFlag(match?.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[9px] font-black uppercase tracking-widest ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.away_team)}</span>
          </div>
-         <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.away_score : "-"}</span>
+         <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.away_score : "-"}</span>
       </div>
     </div>
   );
 };
 
-// Bracket Column Wrapper
-const MatchColumn = ({ matchIds, matchMap }: { matchIds: string[], matchMap: Record<string, any> }) => (
-  <div className="flex flex-col justify-around h-full w-28 relative z-10">
-    {matchIds.map(id => (
-       <div key={id} className="flex justify-center w-full">
-          <BracketMatch match={matchMap[id]} />
-       </div>
-    ))}
+const MatchWrapper = ({ children, height }: { children: React.ReactNode, height: number }) => (
+  <div style={{ height: `${height}px` }} className="flex flex-col justify-center items-center w-full relative z-10">
+    {children}
   </div>
 );
 
-// Connecting Lines
-const BracketConnector = ({ forks, direction }: { forks: number, direction: 'right' | 'left' }) => (
-  <div className="flex flex-col w-6 h-full">
-    {Array.from({ length: forks }).map((_, i) => (
-      <div key={i} className={`flex-1 flex flex-col justify-center ${direction === 'right' ? 'items-start' : 'items-end'}`}>
-         <div className={`w-1/2 h-1/2 border-t-[1.5px] border-b-[1.5px] border-white/10 relative ${direction === 'right' ? 'border-r-[1.5px] rounded-r-md' : 'border-l-[1.5px] rounded-l-md'}`}>
-            <div className={`absolute top-1/2 w-full h-[1.5px] bg-white/10 -mt-[0.75px] ${direction === 'right' ? 'left-full' : 'right-full'}`}></div>
-         </div>
-      </div>
-    ))}
+const ForkRight = ({ height }: { height: number }) => (
+  <div style={{ height: `${height}px` }} className="flex flex-col justify-center items-end w-6 relative">
+     <div className="w-1/2 h-1/2 border-white/10 border-t-[1.5px] border-b-[1.5px] border-r-[1.5px] rounded-r-md relative">
+        <div className="absolute top-1/2 left-full w-3 h-[1.5px] bg-white/10 -mt-[0.75px]" />
+     </div>
   </div>
 );
 
-const SingleLine = () => (
-  <div className="flex flex-col w-6 h-full justify-center">
+const ForkLeft = ({ height }: { height: number }) => (
+  <div style={{ height: `${height}px` }} className="flex flex-col justify-center items-start w-6 relative">
+     <div className="w-1/2 h-1/2 border-white/10 border-t-[1.5px] border-b-[1.5px] border-l-[1.5px] rounded-l-md relative">
+        <div className="absolute top-1/2 right-full w-3 h-[1.5px] bg-white/10 -mt-[0.75px]" />
+     </div>
+  </div>
+);
+
+const SingleLine = ({ height }: { height: number }) => (
+  <div style={{ height: `${height}px` }} className="flex flex-col justify-center items-center w-4 relative">
      <div className="w-full h-[1.5px] bg-white/10" />
   </div>
 );
 
 function KnockoutBracket({ matches }: { matches: any[] }) {
-  const matchMap = matches.reduce((map, m) => {
-    if (m.match_number) map[m.match_number as string] = m;
-    return map;
-  }, {} as Record<string, any>);
+  // Chronological Mapping bypasses the need for the user to have a match_number column!
+  const r32 = (matches || []).filter(m => m.sub_phase === 'r32').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
+  const r16 = (matches || []).filter(m => m.sub_phase === 'r16').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
+  const qf = (matches || []).filter(m => m.sub_phase === 'quarter').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
+  const sf = (matches || []).filter(m => m.sub_phase === 'semi').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
+  const bronze = (matches || []).find(m => m.sub_phase === 'bronze');
+  const final = (matches || []).find(m => m.sub_phase === 'final');
+
+  // Automatically map the matches exactly as FIFA schedules them
+  const matchMap: Record<string, any> = {
+    "M73": r32[0], "M74": r32[1], "M75": r32[2], "M76": r32[3],
+    "M77": r32[4], "M78": r32[5], "M79": r32[6], "M80": r32[7],
+    "M81": r32[8], "M82": r32[9], "M83": r32[10], "M84": r32[11],
+    "M85": r32[12], "M86": r32[13], "M87": r32[14], "M88": r32[15],
+    "M89": r16[0], "M90": r16[1], "M91": r16[2], "M92": r16[3],
+    "M93": r16[4], "M94": r16[5], "M95": r16[6], "M96": r16[7],
+    "M97": qf[0], "M98": qf[1], "M99": qf[2], "M100": qf[3],
+    "M101": sf[0], "M102": sf[1],
+    "M103": bronze, "M104": final
+  };
+
+  const H = 64; // Height per spacing block
 
   return (
-    <div className="bg-[#0b0d13] border border-white/5 rounded-3xl p-6 overflow-x-auto shadow-2xl scrollbar-hide">
-      <div className="flex min-w-[1240px] mb-2 text-[8px] font-black uppercase text-slate-500 tracking-widest text-center">
-         <div className="w-28">Round of 32</div><div className="w-6" />
-         <div className="w-28">Round of 16</div><div className="w-6" />
-         <div className="w-28">Quarter-Final</div><div className="w-6" />
-         <div className="w-28">Semi-Final</div><div className="w-6" />
-         <div className="w-40"></div><div className="w-6" />
-         <div className="w-28">Semi-Final</div><div className="w-6" />
-         <div className="w-28">Quarter-Final</div><div className="w-6" />
-         <div className="w-28">Round of 16</div><div className="w-6" />
-         <div className="w-28">Round of 32</div>
+    <div className="bg-[#0b0d14] border border-white/5 rounded-3xl p-8 overflow-x-auto shadow-2xl scrollbar-hide">
+      <div className="flex min-w-[1200px] mb-4 text-[9px] font-black uppercase text-slate-500 tracking-widest text-center justify-between">
+         <div className="w-[130px]">Round of 32</div>
+         <div className="w-[130px]">Round of 16</div>
+         <div className="w-[130px]">Quarter-Final</div>
+         <div className="w-[130px]">Semi-Final</div>
+         <div className="w-[160px] text-emerald-400/50">The Final</div>
+         <div className="w-[130px]">Semi-Final</div>
+         <div className="w-[130px]">Quarter-Final</div>
+         <div className="w-[130px]">Round of 16</div>
+         <div className="w-[130px]">Round of 32</div>
       </div>
-      <div className="flex min-w-[1240px] h-[640px] items-center justify-center">
-        {/* LEFT Bracket */}
-        <MatchColumn matchIds={["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"]} matchMap={matchMap} />
-        <BracketConnector forks={4} direction="right" />
-        <MatchColumn matchIds={["M89", "M90", "M93", "M94"]} matchMap={matchMap} />
-        <BracketConnector forks={2} direction="right" />
-        <MatchColumn matchIds={["M97", "M98"]} matchMap={matchMap} />
-        <BracketConnector forks={1} direction="right" />
-        <MatchColumn matchIds={["M101"]} matchMap={matchMap} />
-        <SingleLine />
+      
+      {/* Core Flex Layout */}
+      <div className="flex min-w-[1200px] justify-between items-center text-center">
         
-        {/* CENTER: Final & Bronze */}
-        <div className="flex flex-col justify-center items-center h-full w-40 relative z-10 mx-1">
-           <div className="absolute top-[8%] flex flex-col items-center">
-              <Trophy className="w-12 h-12 text-emerald-500 mb-2 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-4 shadow-emerald-500/10">The Final</span>
+        {/* LEFT PATH */}
+        <div className="flex w-[130px] flex-col">
+          {["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"].map(id => <MatchWrapper key={id} height={H}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col">{Array(4).fill(0).map((_,i) => <ForkRight key={i} height={H*2} />)}</div>
+        <div className="flex w-[130px] flex-col">
+          {["M89", "M90", "M93", "M94"].map(id => <MatchWrapper key={id} height={H*2}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col">{Array(2).fill(0).map((_,i) => <ForkRight key={i} height={H*4} />)}</div>
+        <div className="flex w-[130px] flex-col">
+          {["M97", "M98"].map(id => <MatchWrapper key={id} height={H*4}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col"><ForkRight height={H*8} /></div>
+        <div className="flex w-[130px] flex-col">
+          {["M101"].map(id => <MatchWrapper key={id} height={H*8}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
+        </div>
+        <SingleLine height={H*8} />
+
+        {/* CENTER PATH */}
+        <div className="flex flex-col justify-center items-center w-[160px] relative z-10" style={{ height: `${H*8}px` }}>
+           <div className="absolute top-[12%] flex flex-col items-center">
+              <Trophy className="w-10 h-10 text-emerald-500 mb-2 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]" />
            </div>
-           <div className="w-full flex justify-center z-20"><BracketMatch match={matchMap["M104"]} /></div>
-           <div className="absolute bottom-[8%] flex flex-col items-center w-full">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3 border-b border-white/10 pb-1">3rd Place Match</span>
+           <BracketMatch match={matchMap["M104"]} />
+           <div className="absolute bottom-[12%] flex flex-col items-center w-full">
+              <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-2 border-b border-white/5 pb-1">3rd Place Match</span>
               <BracketMatch match={matchMap["M103"]} />
            </div>
         </div>
 
-        {/* RIGHT Bracket */}
-        <SingleLine />
-        <MatchColumn matchIds={["M102"]} matchMap={matchMap} />
-        <BracketConnector forks={1} direction="left" />
-        <MatchColumn matchIds={["M99", "M100"]} matchMap={matchMap} />
-        <BracketConnector forks={2} direction="left" />
-        <MatchColumn matchIds={["M91", "M92", "M95", "M96"]} matchMap={matchMap} />
-        <BracketConnector forks={4} direction="left" />
-        <MatchColumn matchIds={["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"]} matchMap={matchMap} />
+        {/* RIGHT PATH */}
+        <SingleLine height={H*8} />
+        <div className="flex w-[130px] flex-col">
+          {["M102"].map(id => <MatchWrapper key={id} height={H*8}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col"><ForkLeft height={H*8} /></div>
+        <div className="flex w-[130px] flex-col">
+          {["M99", "M100"].map(id => <MatchWrapper key={id} height={H*4}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col">{Array(2).fill(0).map((_,i) => <ForkLeft key={i} height={H*4} />)}</div>
+        <div className="flex w-[130px] flex-col">
+          {["M91", "M92", "M95", "M96"].map(id => <MatchWrapper key={id} height={H*2}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
+        </div>
+        <div className="flex flex-col">{Array(4).fill(0).map((_,i) => <ForkLeft key={i} height={H*2} />)}</div>
+        <div className="flex w-[130px] flex-col">
+          {["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"].map(id => <MatchWrapper key={id} height={H}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
+        </div>
+
       </div>
     </div>
   );
 }
 
-// --- REMAINING STATS COMPONENTS ---
 function TopPerformers({ players }: { players: any[] }) {
   const scorers = [...players].sort((a, b) => b.goals - a.goals).slice(0, 10);
   const assisters = [...players].sort((a, b) => b.assists - a.assists).slice(0, 10);
@@ -604,7 +635,7 @@ function MatchCard({ match, userId, locked, isPending }: any) {
     <div className={`bg-white/5 border rounded-2xl p-6 transition-all ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 leading-none">{locked && <Clock className="w-3 h-3 text-rose-500" />}{new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 leading-none">{locked && <Clock className="w-3 h-3 text-rose-500" />}{new Date(match.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
           <span className="bg-white/5 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded uppercase italic">{match.group_name || match.sub_phase}</span>
           {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1 italic"><Lock className="w-2 h-2" /> View Only</span>}
         </div>
