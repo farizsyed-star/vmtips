@@ -157,6 +157,62 @@ export default function WorldCupApp() {
     await supabase.auth.signOut();
   };
 
+  const syncFromAPI = async () => {
+    const API_KEY = process.env.NEXT_PUBLIC_RAPIDAPI_KEY || "";
+    const LEAGUE_ID = 1;
+    const SEASON = 2026;
+    if (!API_KEY) { alert("Missing NEXT_PUBLIC_RAPIDAPI_KEY env var"); return; }
+
+    try {
+      // A. Match results
+      const matchRes = await fetch(`https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}`, {
+        headers: { "x-rapidapi-key": API_KEY, "x-rapidapi-host": "v3.football.api-sports.io" }
+      });
+      const matchData = await matchRes.json();
+
+      let settledCount = 0;
+      for (const fixture of matchData.response || []) {
+        const status = fixture.fixture?.status?.short;
+        if (status === "FT" || status === "AET" || status === "PEN") {
+          const homeScore = fixture.goals.home;
+          const awayScore = fixture.goals.away;
+          const penHome = fixture.score?.penalty?.home;
+          const penAway = fixture.score?.penalty?.away;
+          const penWinner = penHome > penAway ? 'home' : penAway > penHome ? 'away' : null;
+
+          const { data: match } = await supabase.from("matches").select("*").eq("api_id", fixture.fixture.id).single();
+          if (match && !match.settled) {
+            try {
+              await settleMatchCore(match, { h: homeScore, a: awayScore, pw: penWinner });
+              settledCount++;
+            } catch (e) { console.error("Settle failed for", match.id, e); }
+          }
+        }
+      }
+
+      // B. Top scorers / assists
+      const playerRes = await fetch(`https://v3.football.api-sports.io/players/topscorers?league=${LEAGUE_ID}&season=${SEASON}`, {
+        headers: { "x-rapidapi-key": API_KEY, "x-rapidapi-host": "v3.football.api-sports.io" }
+      });
+      const playerData = await playerRes.json();
+
+      for (const p of playerData.response || []) {
+        await supabase.from("tournament_players").upsert({
+          api_id: p.player.id,
+          name: p.player.name,
+          team: p.statistics[0].team.name,
+          goals: p.statistics[0].goals.total || 0,
+          assists: p.statistics[0].goals.assists || 0
+        }, { onConflict: 'api_id' });
+      }
+
+      alert(`Sync complete. Settled ${settledCount} match(es). Player stats refreshed.`);
+    } catch (err) {
+      console.error(err);
+      alert("Sync failed. Check console.");
+    }
+  };
+
   if (loading || view === "loading") return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase italic tracking-widest animate-pulse">Loading World Cup...</div>;
   if (!user) return <AuthScreen />;
   if (!profile?.username) return <UsernameSetup userId={user.id} onComplete={() => { setShowWelcome(true); fetchProfile(user.id); }} />;
@@ -206,7 +262,7 @@ export default function WorldCupApp() {
         {view === "stats" && <StatsPage matches={matches} />}
         {view === "leaderboard" && <Leaderboard />}
         {view === "rules" && <RulesPage />}
-        {view === "admin" && <AdminPanel matches={matches} />}
+        {view === "admin" && <AdminPanel matches={matches} syncFromAPI={syncFromAPI} />}
       </main>
     </div>
   );
@@ -516,51 +572,29 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- ADMIN PANEL ADDITIONS ---
-function AdminPanel({ matches }: any) {
-  const [scores, setScores] = useState<any>({});
-  const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
+// --- SHARED SETTLE LOGIC (used by both manual admin button and API sync) ---
+async function settleMatchCore(m: any, s: { h: any; a: any; pw?: string | null }) {
+  const actH = parseInt(s.h);
+  const actA = parseInt(s.a);
+  if (isNaN(actH) || isNaN(actA)) throw new Error("Invalid scores");
 
-  const addPlayer = async () => {
-    if (!newPlayer.name || !newPlayer.team) return alert("Fill in name and team!");
-    const { error } = await supabase.from("tournament_players").insert(newPlayer);
-    if(error) alert(error.message);
-    else { alert("Player added/updated!"); setNewPlayer({ name: "", team: "", goals: 0, assists: 0 }); }
-  };
-
-  const settleMatch = async (m: any) => {
-    const s = scores[m.id];
-    if (!s || s.h === "" || s.a === "") return alert("Enter scores!");
-    if (m.phase > 1 && s.h === s.a && !s.pw) {
-      return alert("Select a penalty winner for the tie!");
-    }
-
-    const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
-    if (!preds) return;
-
+  const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
+  if (preds) {
     for (const p of preds) {
       let pts = 0;
-      const actH = parseInt(s.h);
-      const actA = parseInt(s.a);
-
       const isExact = p.pred_home === actH && p.pred_away === actA;
       let isOutcome = false;
 
       if (m.sub_phase === 'group') {
         isOutcome = Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA);
       } else if (m.sub_phase === 'r32') {
-        // R32: who advances? (winner of match, or penalty winner if drawn)
         const homeAdvances = actH > actA || (actH === actA && s.pw === 'home');
         const userPickedHome = p.pred_home > p.pred_away;
         isOutcome = homeAdvances === userPickedHome;
       } else {
-        if (actH > actA) {
-          isOutcome = p.pred_home > p.pred_away;
-        } else if (actH < actA) {
-          isOutcome = p.pred_home < p.pred_away;
-        } else {
-          isOutcome = (p.pred_home === p.pred_away) && (p.penalty_winner_pred === s.pw);
-        }
+        if (actH > actA) isOutcome = p.pred_home > p.pred_away;
+        else if (actH < actA) isOutcome = p.pred_home < p.pred_away;
+        else isOutcome = (p.pred_home === p.pred_away) && (p.penalty_winner_pred === s.pw);
       }
 
       if (m.sub_phase === 'group') pts = isOutcome ? 1 : 0;
@@ -571,18 +605,74 @@ function AdminPanel({ matches }: any) {
 
       if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
     }
-    await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
-    alert(`Match Settled!`);
+  }
+
+  await supabase.from("matches").update({
+    home_score: actH, away_score: actA, penalty_winner_actual: s.pw || null, settled: true
+  }).eq("id", m.id);
+}
+
+// --- ADMIN PANEL ---
+function AdminPanel({ matches, syncFromAPI }: any) {
+  const [scores, setScores] = useState<any>({});
+  const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
+  const [syncing, setSyncing] = useState(false);
+
+  const addPlayer = async () => {
+    if (!newPlayer.name || !newPlayer.team) return alert("Fill in name and team!");
+    const { error } = await supabase.from("tournament_players").insert(newPlayer);
+    if (error) alert(error.message);
+    else { alert("Player added/updated!"); setNewPlayer({ name: "", team: "", goals: 0, assists: 0 }); }
+  };
+
+  const settleMatch = async (m: any) => {
+    const s = scores[m.id];
+    if (!s || s.h === "" || s.a === "") return alert("Enter scores!");
+    if (m.phase > 1 && s.h === s.a && !s.pw) return alert("Select a penalty winner for the tie!");
+    try {
+      await settleMatchCore(m, s);
+      alert("Match Settled!");
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try { await syncFromAPI(); } finally { setSyncing(false); }
   };
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
+      {/* API AUTOMATION */}
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-3xl p-8 shadow-xl">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-blue-400 font-black text-2xl uppercase italic tracking-tighter flex items-center gap-3 mb-2">
+              <Globe className="w-6 h-6" /> API Automation
+            </h2>
+            <p className="text-slate-400 text-sm">Pull results and stats from API-Football. Settles matches and awards points automatically.</p>
+          </div>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-wait whitespace-nowrap"
+          >
+            {syncing ? "Syncing..." : "Run Global Sync"}
+          </button>
+        </div>
+      </div>
+
+      {/* MANUAL OVERRIDE */}
       <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
-        <h2 className="text-amber-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Shield className="w-5 h-5" /> Admin: Match Scores</h2>
+        <h2 className="text-amber-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Shield className="w-5 h-5" /> Admin: Manual Override</h2>
         <div className="space-y-4">
           {matches.filter((m: any) => !m.settled).map((m: any) => (
             <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center group">
-              <span className="text-[10px] font-black uppercase tracking-tight text-slate-500 group-hover:text-white">{m.home_team} vs {m.away_team} ({m.sub_phase})</span>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-tight text-slate-500 group-hover:text-white">{m.home_team} vs {m.away_team} ({m.sub_phase})</span>
+                <span className="text-[9px] text-slate-600 font-bold uppercase">API ID: {m.api_id || "Not linked"}</span>
+              </div>
               <div className="flex gap-2">
                 <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
                 <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
@@ -600,6 +690,7 @@ function AdminPanel({ matches }: any) {
         </div>
       </div>
 
+      {/* PLAYER STATS CRUD */}
       <div className="bg-emerald-400/5 border border-emerald-400/20 rounded-2xl p-6">
         <h2 className="text-emerald-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Users className="w-5 h-5" /> Admin: Player Stats</h2>
         <div className="grid grid-cols-2 gap-4 mb-4">
