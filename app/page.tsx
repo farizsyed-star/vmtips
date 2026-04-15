@@ -8,9 +8,9 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", proces
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
 const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
-// Extensive Flag Mapping
+// Flags and Neutral Placeholders
 const getFlag = (team: string) => {
-  if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER") || team.toUpperCase().includes("GROUP") || team.toUpperCase().includes("3RD")) {
+  if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER") || team.toUpperCase().includes("3RD")) {
     return null;
   }
   const name = team.toLowerCase().trim();
@@ -65,7 +65,7 @@ function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | n
       <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
       {isPending ? (
         <span className="text-slate-500 font-black uppercase text-xs italic tracking-widest flex items-center gap-2">
-          <Lock className="w-3 h-3" /> Awaiting Previous Phase
+          <Lock className="w-3 h-3" /> Waiting for previous stage...
         </span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm italic tracking-widest flex items-center gap-2">
@@ -92,6 +92,7 @@ function TimeBlock({ unit, val }: any) {
   );
 }
 
+// --- MAIN APP COMPONENT ---
 export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -172,13 +173,11 @@ function NavBtn({ active, onClick, label }: any) {
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   
-  // Phase End Detectors
   const groupEnd = matches.filter((m: any) => m.sub_phase === 'group').slice(-1)[0];
   const r32End = matches.filter((m: any) => m.sub_phase === 'r32').slice(-1)[0];
   const r16End = matches.filter((m: any) => m.sub_phase === 'r16').slice(-1)[0];
   const sfEnd = matches.filter((m: any) => m.sub_phase === 'semi').slice(-1)[0];
 
-  // Phase Start Detectors
   const firstR32 = matches.find((m: any) => m.sub_phase === 'r32');
   const firstR16 = matches.find((m: any) => m.sub_phase === 'r16');
   const firstQF = matches.find((m: any) => m.sub_phase === 'quarter');
@@ -189,23 +188,23 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   let matchesLocked = false;
   let filtered = [];
 
-  if (tab === 1) { // Group Stage
-    lockTime = TOURNAMENT_START;
+  if (tab === 1) { 
+    lockTime = TOURNAMENT_START; 
     matchesLocked = now > TOURNAMENT_START;
     filtered = matches.filter((m: any) => m.sub_phase === 'group');
-  } else if (tab === 2) { // Round of 32
+  } else if (tab === 2) { 
     if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
     filtered = matches.filter((m: any) => m.sub_phase === 'r32');
-  } else if (tab === 3) { // Round of 16
+  } else if (tab === 3) { 
     if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
     filtered = matches.filter((m: any) => m.sub_phase === 'r16');
-  } else if (tab === 4) { // Quarter & Semi Finals
+  } else if (tab === 4) { 
     if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
     filtered = matches.filter((m: any) => m.sub_phase === 'quarter' || m.sub_phase === 'semi');
-  } else if (tab === 5) { // Gold & Bronze Finals
+  } else if (tab === 5) { 
     if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
     filtered = matches.filter((m: any) => m.sub_phase === 'bronze' || m.sub_phase === 'final');
@@ -459,11 +458,11 @@ function RulesPage() {
       <section>
         <h3 className="text-emerald-400 font-black uppercase italic mb-4 flex items-center gap-2 underline tracking-widest"><Globe className="w-4 h-4" /> Scoring Engine</h3>
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Group Stage</span> 1pt (Outcome) / 2pt (Score)</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">R32, R16 & QF</span> 2pt (Outcome) / 3pt (Score)</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Semi Finals</span> 3pt (Outcome) / 4pt (Score)</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Bronze Match</span> 4pt (Outcome) / 5pt (Score)</li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Gold Final</span> 5pt (Outcome) / 6pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Group Stage</span> 1pt (Winner) / 2pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">R32, R16 & QF</span> 2pt (Winner) / 3pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Semi Finals</span> 3pt (Winner) / 4pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Bronze Match</span> 4pt (Winner) / 5pt (Score)</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1 italic">Gold Final</span> 5pt (Winner) / 6pt (Score)</li>
         </ul>
       </section>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
