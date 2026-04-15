@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target } from "lucide-react";
+import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target, CheckCircle, X } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
@@ -181,7 +181,6 @@ function StatsPage({ matches }: { matches: any[] }) {
 
   return (
     <div className="space-y-6">
-      {/* LOCKED STATS TABS */}
       <div className="sticky top-28 z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
           <button onClick={() => setSubTab(1)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
@@ -273,10 +272,9 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
-// Compact Bracket Match Box with Date/Time INSIDE
+// Compact Bracket Match Box
 const BracketMatch = ({ match }: { match?: any }) => {
   const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
-  // Format sv-SE enforces 24-hour clock formatting (e.g. 18:00)
   const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : "--:--";
   const dateStr = kickoffDate ? kickoffDate.toLocaleDateString('en-GB', { month: 'short', day: '2-digit' }) : "TBD";
 
@@ -291,13 +289,11 @@ const BracketMatch = ({ match }: { match?: any }) => {
 
   return (
     <div className={`relative flex flex-col justify-between w-[130px] h-[56px] bg-[#1a1d24] border ${match?.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-lg hover:border-emerald-500/50 transition-colors shadow-lg px-2 py-1 z-10`}>
-      {/* Top Row: Date & Swedish Time */}
-      <div className="w-full flex justify-between items-center mb-0.5">
+      <div className="absolute bottom-full left-0 w-full flex justify-between px-0.5 mb-0.5">
         <span className="text-[7.5px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
         <span className="text-[7.5px] font-black text-emerald-400/80 tracking-widest uppercase">{timeStr}</span>
       </div>
       
-      {/* Home Team */}
       <div className="w-full flex justify-between items-center mb-0.5">
          <div className="flex items-center gap-1.5">
            {getFlag(match?.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
@@ -306,7 +302,6 @@ const BracketMatch = ({ match }: { match?: any }) => {
          <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.home_score : "-"}</span>
       </div>
       
-      {/* Away Team */}
       <div className="w-full flex justify-between items-center">
          <div className="flex items-center gap-1.5">
            {getFlag(match?.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
@@ -347,7 +342,6 @@ const SingleLine = ({ height }: { height: number }) => (
 );
 
 function KnockoutBracket({ matches }: { matches: any[] }) {
-  // Chronological Mapping
   const r32 = (matches || []).filter(m => m.sub_phase === 'r32').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const r16 = (matches || []).filter(m => m.sub_phase === 'r16').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const qf = (matches || []).filter(m => m.sub_phase === 'quarter').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
@@ -367,7 +361,7 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
     "M103": bronze, "M104": final
   };
 
-  const H = 64; // Height per spacing block
+  const H = 64; 
 
   return (
     <div className="bg-[#0b0d14] border border-white/5 rounded-3xl p-8 overflow-x-auto shadow-2xl scrollbar-hide">
@@ -383,9 +377,7 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
          <div className="w-[130px]">Round of 32</div>
       </div>
       
-      {/* Core Flex Layout */}
       <div className="flex min-w-[1200px] justify-between items-center text-center">
-        
         {/* LEFT PATH */}
         <div className="flex w-[130px] flex-col">
           {["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"].map(id => <MatchWrapper key={id} height={H}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
@@ -433,7 +425,6 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
         <div className="flex w-[130px] flex-col">
           {["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"].map(id => <MatchWrapper key={id} height={H}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
         </div>
-
       </div>
     </div>
   );
@@ -486,7 +477,7 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- REMAINING UTILS (Admin, Welcome, Leaderboard, etc.) ---
+// --- ADMIN PANEL ADDITIONS ---
 function AdminPanel({ matches }: any) {
   const [scores, setScores] = useState<any>({});
   const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
@@ -635,7 +626,6 @@ function MatchList({ matches, tab, setTab, userId }: any) {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* LOCKED MATCHES TABS */}
       <div className="sticky top-28 z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex gap-4 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
           <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
@@ -667,23 +657,38 @@ function PhaseTab({ id, label, active, onClick }: any) {
   );
 }
 
+// MATCH CARD WITH AUTO-SAVE & VISUAL INDICATORS
 function MatchCard({ match, userId, locked, isPending }: any) {
   const [pred, setPred] = useState({ h: "", a: "", pw: "" });
-  const [saved, setSaved] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   
+  // Load prediction
   useEffect(() => {
-    supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => data && setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" }));
+    supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => {
+      if (data) setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" });
+      setInitialLoad(false);
+    });
   }, [match.id, userId]);
 
-  const save = async () => {
-    if (locked || pred.h === "" || pred.a === "") return;
-    await supabase.from("predictions").upsert({ user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw }, { onConflict: 'user_id,match_id' });
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
-  };
+  // Debounced Auto-Save
+  useEffect(() => {
+    if (initialLoad || locked || pred.h === "" || pred.a === "") return;
+    const timer = setTimeout(async () => {
+      await supabase.from("predictions").upsert({ 
+        user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw 
+      }, { onConflict: 'user_id,match_id' });
+    }, 500); // Wait 500ms after user stops typing
+    return () => clearTimeout(timer);
+  }, [pred, initialLoad, locked, match.id, userId]);
+
+  // Logic for visual indicators
+  const isDraw = pred.h !== "" && pred.a !== "" && pred.h === pred.a;
+  const needsPw = match.phase > 1 && isDraw;
+  const isComplete = pred.h !== "" && pred.a !== "" && (!needsPw || pred.pw !== "");
+  const hasStartedTyping = pred.h !== "" || pred.a !== "";
 
   return (
     <div className={`bg-white/5 border rounded-2xl p-6 transition-all relative ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
-      {/* Actual Score Badge when settled */}
       {match.settled && (
         <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[9px] font-black px-3 py-1 rounded-bl-xl rounded-tr-2xl uppercase tracking-widest shadow-sm">
           FT: {match.home_score} - {match.away_score}
@@ -699,28 +704,39 @@ function MatchCard({ match, userId, locked, isPending }: any) {
         </div>
         <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10 mr-12 md:mr-0">{match.channel}</span>
       </div>
+      
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
           {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
           <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.home_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.home_team}</span>
         </div>
-        <div className="flex gap-2">
-          <input type="number" min="0" disabled={locked} value={pred.h} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+        
+        <div className="flex items-center justify-center gap-2">
+          <input type="number" min="0" disabled={locked} value={pred.h} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
             onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
-          <input type="number" min="0" disabled={locked} value={pred.a} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+          
+          <div className="flex flex-col items-center justify-center w-5 h-full">
+             {!locked && hasStartedTyping && (
+                isComplete ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : <X className="w-5 h-5 text-rose-500" />
+             )}
+          </div>
+
+          <input type="number" min="0" disabled={locked} value={pred.a} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
             onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
         </div>
+        
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
           {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
           <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.away_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.away_team}</span>
         </div>
       </div>
+
       {pred.h !== "" && pred.h === pred.a && match.phase > 1 && !locked && (
         <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
-          <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner (+1pt)</p>
-          <div className="flex gap-2 bg-black/40 p-1 rounded-xl">
-            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
-            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
+          <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner (+1pt) <span className="text-rose-500">* Required</span></p>
+          <div className="flex gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
+            <button onClick={() => setPred({...pred, pw: 'home'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
+            <button onClick={() => setPred({...pred, pw: 'away'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
           </div>
         </div>
       )}
