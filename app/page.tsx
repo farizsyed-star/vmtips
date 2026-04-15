@@ -20,8 +20,7 @@ const TEAM_ABBREVIATIONS: Record<string, string> = {
   "venezuela": "VEN", "morocco": "MAR", "senegal": "SEN", "nigeria": "NGA", "egypt": "EGY",
   "ghana": "GHA", "cameroon": "CMR", "algeria": "ALG", "tunisia": "TUN", "ivory coast": "CIV",
   "south africa": "RSA", "japan": "JPN", "south korea": "KOR", "australia": "AUS",
-  "saudi arabia": "KSA", "iran": "IRN", "qatar": "QAT", "costa rica": "CRC", "iceland": "ISL", 
-  "iraq": "IRQ", "new zealand": "NZL", "panama": "PAN"
+  "saudi arabia": "KSA", "iran": "IRN", "qatar": "QAT"
 };
 
 const COUNTRIES = Object.values(TEAM_ABBREVIATIONS).filter((v, i, a) => a.indexOf(v) === i).sort();
@@ -49,8 +48,7 @@ const getFlag = (team: any) => {
     "uruguay": "uy", "colombia": "co", "chile": "cl", "ecuador": "ec", "peru": "pe", "paraguay": "py",
     "venezuela": "ve", "morocco": "ma", "senegal": "sn", "nigeria": "ng", "egypt": "eg", "ghana": "gh",
     "cameroon": "cm", "algeria": "dz", "tunisia": "tn", "ivory coast": "ci", "south africa": "za",
-    "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa",
-    "costa rica": "cr", "iceland": "is", "iraq": "iq", "new zealand": "nz", "panama": "pa"
+    "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa"
   };
   const code = map[name];
   return code ? `https://flagcdn.com/w40/${code}.png` : null;
@@ -108,7 +106,10 @@ export default function WorldCupApp() {
         const r16End = new Date(fetchedMatches.filter((m: any) => m?.sub_phase === 'r16').slice(-1)[0]?.kickoff_time || 0);
         const semiEnd = new Date(fetchedMatches.filter((m: any) => m?.sub_phase === 'semi').slice(-1)[0]?.kickoff_time || 0);
 
-        if (now > semiEnd) setTab(5);
+        const allSettled = fetchedMatches.every(m => m.settled);
+
+        if (allSettled) setTab(6); // If everything is done, default to Results
+        else if (now > semiEnd) setTab(5);
         else if (now > r16End) setTab(4);
         else if (now > r32End) setTab(3);
         else if (now > groupEnd) setTab(2);
@@ -265,7 +266,6 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
-// Compact Bracket Match Box with Date/Time INSIDE
 const BracketMatch = ({ match }: { match?: any }) => {
   const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
   const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : "--:--";
@@ -275,35 +275,32 @@ const BracketMatch = ({ match }: { match?: any }) => {
   const aWin = match?.settled && (match.away_score > match.home_score || match.penalty_winner_actual === 'away');
 
   if (!match) return (
-    <div className="relative flex justify-center items-center w-[130px] h-[56px] bg-[#1a1d24]/30 border border-white/5 rounded-lg">
+    <div className="relative flex justify-center items-center w-28 h-[46px] bg-[#1a1d24]/30 border border-white/5 rounded-md">
       <span className="text-[9px] font-black text-slate-700 italic uppercase tracking-widest">Match TBD</span>
     </div>
   );
 
   return (
-    <div className={`relative flex flex-col justify-between w-[130px] h-[56px] bg-[#1a1d24] border ${match?.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-lg hover:border-emerald-500/50 transition-colors shadow-lg px-2 py-1 z-10`}>
-      {/* Top Row: Date & Swedish Time */}
-      <div className="w-full flex justify-between items-center mb-0.5">
-        <span className="text-[7.5px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
-        <span className="text-[7.5px] font-black text-emerald-400/80 tracking-widest uppercase">{timeStr}</span>
+    <div className={`relative flex flex-col justify-between w-28 h-[46px] bg-[#1a1d24] border ${match.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-md hover:border-emerald-500/50 transition-colors z-10`}>
+      <div className="absolute bottom-full left-0 w-full flex justify-between px-0.5 mb-0.5">
+        <span className="text-[7px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
+        <span className="text-[7px] font-black text-emerald-400/80 tracking-widest uppercase">{timeStr}</span>
       </div>
       
-      {/* Home Team */}
-      <div className="w-full flex justify-between items-center mb-0.5">
+      <div className="w-full flex justify-between items-center px-1.5 py-0.5 border-b border-white/5 h-1/2">
          <div className="flex items-center gap-1.5">
-           {getFlag(match?.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-black uppercase tracking-widest ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.home_team)}</span>
+           {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[9px] font-bold uppercase tracking-tight ${hWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.home_team)}</span>
          </div>
-         <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.home_score : "-"}</span>
+         <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.home_score : "-"}</span>
       </div>
       
-      {/* Away Team */}
-      <div className="w-full flex justify-between items-center">
+      <div className="w-full flex justify-between items-center px-1.5 py-0.5 h-1/2">
          <div className="flex items-center gap-1.5">
-           {getFlag(match?.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-black uppercase tracking-widest ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.away_team)}</span>
+           {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[9px] font-bold uppercase tracking-tight ${aWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.away_team)}</span>
          </div>
-         <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.away_score : "-"}</span>
+         <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.away_score : "-"}</span>
       </div>
     </div>
   );
@@ -338,7 +335,6 @@ const SingleLine = ({ height }: { height: number }) => (
 );
 
 function KnockoutBracket({ matches }: { matches: any[] }) {
-  // Chronological Mapping
   const r32 = (matches || []).filter(m => m.sub_phase === 'r32').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const r16 = (matches || []).filter(m => m.sub_phase === 'r16').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const qf = (matches || []).filter(m => m.sub_phase === 'quarter').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
@@ -358,7 +354,7 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
     "M103": bronze, "M104": final
   };
 
-  const H = 64; // Height per spacing block
+  const H = 64; 
 
   return (
     <div className="bg-[#0b0d14] border border-white/5 rounded-3xl p-8 overflow-x-auto shadow-2xl scrollbar-hide">
@@ -374,7 +370,6 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
          <div className="w-[130px]">Round of 32</div>
       </div>
       
-      {/* Core Flex Layout */}
       <div className="flex min-w-[1200px] justify-between items-center text-center">
         
         {/* LEFT PATH */}
@@ -477,7 +472,7 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- ADMIN PANEL ADDITIONS ---
+// --- REMAINING UTILS (Admin, Welcome, Leaderboard, etc.) ---
 function AdminPanel({ matches }: any) {
   const [scores, setScores] = useState<any>({});
   const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
@@ -551,7 +546,6 @@ function AdminPanel({ matches }: any) {
   );
 }
 
-// --- REMAINING UTILS (Timer, Leaderboard, Auth, etc.) ---
 function NavBtn({ active, onClick, label }: any) {
   return (
     <button onClick={onClick} className={`flex-1 min-w-[90px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
@@ -578,43 +572,74 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
   );
 }
 
+// --- MATCH LIST & RESULTS LOGIC ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
-  const groupEnd = matches.filter((m: any) => m?.sub_phase === 'group').slice(-1)[0];
-  const r32End = matches.filter((m: any) => m?.sub_phase === 'r32').slice(-1)[0];
-  const r16End = matches.filter((m: any) => m?.sub_phase === 'r16').slice(-1)[0];
-  const sfEnd = matches.filter((m: any) => m?.sub_phase === 'semi').slice(-1)[0];
-
-  const firstR32 = matches.find((m: any) => m?.sub_phase === 'r32');
-  const firstR16 = matches.find((m: any) => m?.sub_phase === 'r16');
-  const firstQF = matches.find((m: any) => m?.sub_phase === 'quarter');
-  const firstFinal = matches.find((m: any) => m?.sub_phase === 'bronze' || m?.sub_phase === 'final');
-
+  
   let lockTime: Date | null = null;
   let isPending = false;
   let matchesLocked = false;
   let filtered = [];
 
-  if (tab === 1) { lockTime = TOURNAMENT_START; matchesLocked = now > TOURNAMENT_START; filtered = matches.filter((m: any) => m?.sub_phase === 'group'); } 
-  else if (tab === 2) { if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m?.sub_phase === 'r32'); } 
-  else if (tab === 3) { if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m?.sub_phase === 'r16'); } 
-  else if (tab === 4) { if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m?.sub_phase === 'quarter' || m?.sub_phase === 'semi'); } 
-  else if (tab === 5) { if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } filtered = matches.filter((m: any) => m?.sub_phase === 'bronze' || m?.sub_phase === 'final'); }
+  if (tab === 6) { // Results Tab
+    lockTime = null; 
+    matchesLocked = true; 
+    filtered = matches.filter((m: any) => m.settled).sort((a,b) => new Date(b.kickoff_time).getTime() - new Date(a.kickoff_time).getTime()); 
+  } else {
+    const groupEnd = matches.filter((m: any) => m?.sub_phase === 'group').slice(-1)[0];
+    const r32End = matches.filter((m: any) => m?.sub_phase === 'r32').slice(-1)[0];
+    const r16End = matches.filter((m: any) => m?.sub_phase === 'r16').slice(-1)[0];
+    const sfEnd = matches.filter((m: any) => m?.sub_phase === 'semi').slice(-1)[0];
 
-  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals"];
+    const firstR32 = matches.find((m: any) => m?.sub_phase === 'r32');
+    const firstR16 = matches.find((m: any) => m?.sub_phase === 'r16');
+    const firstQF = matches.find((m: any) => m?.sub_phase === 'quarter');
+    const firstFinal = matches.find((m: any) => m?.sub_phase === 'bronze' || m?.sub_phase === 'final');
+
+    if (tab === 1) { 
+      lockTime = TOURNAMENT_START; matchesLocked = now > TOURNAMENT_START; 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'group' && !m.settled); 
+    } 
+    else if (tab === 2) { 
+      if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'r32' && !m.settled); 
+    } 
+    else if (tab === 3) { 
+      if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'r16' && !m.settled); 
+    } 
+    else if (tab === 4) { 
+      if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => (m?.sub_phase === 'quarter' || m?.sub_phase === 'semi') && !m.settled); 
+    } 
+    else if (tab === 5) { 
+      if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => (m?.sub_phase === 'bronze' || m?.sub_phase === 'final') && !m.settled); 
+    }
+  }
+
+  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals", "Results"];
 
   return (
     <div className="max-w-5xl mx-auto">
-      <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />
+      {tab !== 6 && <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />}
+      
       <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
         <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
         <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
         <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
         <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
         <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
+        <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
       </div>
+      
       <div className="grid gap-4">
         {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
+        {filtered.length === 0 && (
+          <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">
+             {tab === 6 ? "No matches have finished yet." : !isPending ? "No matches remaining in this round." : "Waiting for previous round..."}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -629,23 +654,34 @@ function PhaseTab({ id, label, active, onClick }: any) {
 function MatchCard({ match, userId, locked, isPending }: any) {
   const [pred, setPred] = useState({ h: "", a: "", pw: "" });
   const [saved, setSaved] = useState(false);
+  
   useEffect(() => {
     supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => data && setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" }));
   }, [match.id, userId]);
+
   const save = async () => {
     if (locked || pred.h === "" || pred.a === "") return;
     await supabase.from("predictions").upsert({ user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw }, { onConflict: 'user_id,match_id' });
     setSaved(true); setTimeout(() => setSaved(false), 2000);
   };
+
   return (
-    <div className={`bg-white/5 border rounded-2xl p-6 transition-all ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
-      <div className="flex justify-between items-center mb-4">
+    <div className={`bg-white/5 border rounded-2xl p-6 transition-all relative ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
+      {/* Actual Score Badge when settled */}
+      {match.settled && (
+        <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[9px] font-black px-3 py-1 rounded-bl-xl rounded-tr-2xl uppercase tracking-widest shadow-sm">
+          FT: {match.home_score} - {match.away_score}
+          {match.penalty_winner_actual ? ` (${match.penalty_winner_actual === 'home' ? getTeamLabel(match.home_team) : getTeamLabel(match.away_team)} pens)` : ''}
+        </div>
+      )}
+
+      <div className="flex justify-between items-center mb-4 mt-2">
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 leading-none">{locked && <Clock className="w-3 h-3 text-rose-500" />}{new Date(match.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 leading-none">{locked && !match.settled && <Clock className="w-3 h-3 text-rose-500" />}{new Date(match.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
           <span className="bg-white/5 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded uppercase italic">{match.group_name || match.sub_phase}</span>
           {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1 italic"><Lock className="w-2 h-2" /> View Only</span>}
         </div>
-        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10">{match.channel}</span>
+        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10 mr-12">{match.channel}</span>
       </div>
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
@@ -654,9 +690,9 @@ function MatchCard({ match, userId, locked, isPending }: any) {
         </div>
         <div className="flex gap-2">
           <input type="number" min="0" disabled={locked} value={pred.h} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
-            onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-600" placeholder="-" />
+            onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
           <input type="number" min="0" disabled={locked} value={pred.a} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
-            onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-600" placeholder="-" />
+            onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
         </div>
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
           {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
