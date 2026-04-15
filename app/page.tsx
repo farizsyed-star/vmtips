@@ -34,6 +34,21 @@ export default function WorldCupApp() {
       }
     };
     getSession();
+
+    // Lyssna på inloggningsändringar (t.ex. när man klickar på länken i mejlet)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setUser(session.user);
+        supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => setProfile(data));
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -66,72 +81,4 @@ export default function WorldCupApp() {
       </header>
 
       <nav className="max-w-5xl mx-auto px-4 mt-6 flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
-        <button onClick={() => setView("matches")} className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition ${view === "matches" ? "bg-emerald-500 text-black" : "text-slate-400"}`}>Matcher</button>
-        <button onClick={() => setView("leaderboard")} className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition ${view === "leaderboard" ? "bg-emerald-500 text-black" : "text-slate-400"}`}>Tabell</button>
-      </nav>
-
-      <main className="max-w-4xl mx-auto px-4 mt-8">
-        {view === "matches" ? (
-          <>
-            <div className="flex gap-6 mb-8 border-b border-white/5 overflow-x-auto">
-              {[1, 2, 3].map(n => (
-                <button key={n} onClick={() => setTab(n)} className={`pb-3 text-[10px] font-bold uppercase tracking-widest transition ${tab === n ? "border-b-2 border-emerald-400 text-white" : "text-slate-500"}`}>Phase {n}</button>
-              ))}
-            </div>
-            <div className="grid gap-4">
-              {matches.filter((m: any) => m.phase === tab).map((m: any) => (
-                <div key={m.id} className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                  <div className="flex justify-between items-center mb-4 uppercase text-[10px] font-bold">
-                    <span className="text-slate-500">{new Date(m.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className="text-emerald-400">{m.channel || "TBA"}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 font-bold text-lg uppercase">
-                    <span className="flex-1 text-right">{m.home_team}</span>
-                    <div className="flex gap-2">
-                      <input type="number" className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-white focus:border-emerald-400 outline-none" placeholder="-" />
-                      <input type="number" className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-white focus:border-emerald-400 outline-none" placeholder="-" />
-                    </div>
-                    <span className="flex-1 text-left">{m.away_team}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest">Kommer snart!</div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-function AuthScreen() {
-  const login = () => supabase.auth.signInWithOAuth({ provider: 'google' });
-  return (
-    <div className="min-h-screen bg-[#07090d] grid place-items-center text-center p-4">
-      <div>
-        <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-        <h1 className="text-5xl font-bold text-white mb-2 tracking-tighter uppercase italic">VM-Tips <span className="text-emerald-400">2026</span></h1>
-        <button onClick={login} className="bg-white text-black px-10 py-4 rounded-2xl font-bold hover:bg-slate-200 transition uppercase tracking-widest text-xs mt-8 italic">Logga in med Google</button>
-      </div>
-    </div>
-  );
-}
-
-function UsernameSetup({ userId, onComplete }: any) {
-  const [name, setName] = useState("");
-  const save = async () => {
-    if (name.length < 3) return alert("Minst 3 tecken!");
-    const { error } = await supabase.from("profiles").upsert({ id: userId, username: name });
-    if (!error) onComplete();
-  };
-  return (
-    <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
-      <div className="max-w-sm w-full text-center">
-        <h2 className="text-2xl font-bold text-white mb-6 uppercase italic">Ditt spelarnamn</h2>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white mb-6 text-center focus:border-emerald-400 font-bold outline-none" placeholder="Zlatan" />
-        <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-bold uppercase tracking-widest italic">Starta</button>
-      </div>
-    </div>
-  );
-}
+        <button onClick={() => setView("matches")} className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition ${view === "matches" ? "bg-emerald-500 text-black" : "text-slate
