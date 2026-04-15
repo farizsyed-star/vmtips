@@ -8,127 +8,26 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", proces
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
 const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
-// Standard three-letter codes for known World Cup teams
+// --- UTILS: Flags & 3-Letter Abbreviations ---
 const TEAM_ABBREVIATIONS: Record<string, string> = {
-  "mexico": "MEX", "mexiko": "MEX", "mexico republic": "MEX", "mexico flag": "MEX",
-  "usa": "USA", "us": "USA", "united states": "USA",
-  "canada": "CAN",
-  "argentina": "ARG",
-  "brazil": "BRA",
-  "france": "FRA",
-  "england": "ENG",
-  "spain": "ESP",
-  "germany": "GER",
-  "portugal": "POR",
-  "netherlands": "NED",
-  "belgium": "BEL",
-  "italy": "ITA",
-  "croatia": "CRO",
-  "denmark": "DEN",
-  "norway": "NOR",
-  "sweden": "SWE",
-  "poland": "POL",
-  "serbia": "SRB",
-  "switzerland": "SUI",
-  "austria": "AUT",
-  "turkey": "TUR",
-  "ukraine": "UKR",
-  "scotland": "SCO",
-  "wales": "WAL",
-  "hungary": "HUN",
-  "greece": "GRE",
-  "czech republic": "CZE", "tjeckien": "CZE",
-  "uruguay": "URU",
-  "colombia": "COL",
-  "chile": "CHI",
-  "ecuador": "ECU",
-  "peru": "PER",
-  "paraguay": "PAR",
-  "venezuela": "VEN",
-  "morocco": "MAR",
-  "senegal": "SEN",
-  "nigeria": "NGA",
-  "egypt": "EGY",
-  "ghana": "GHA",
-  "cameroon": "CMR",
-  "algeria": "ALG",
-  "tunisia": "TUN",
-  "ivory coast": "CIV",
-  "south africa": "RSA", "sydafrika": "RSA",
-  "japan": "JPN",
-  "south korea": "KOR", "sydkorea": "KOR", "korea republic": "KOR",
-  "australia": "AUS",
-  "saudi arabia": "KSA",
-  "iran": "IRN",
-  "qatar": "QAT"
+  "mexico": "MEX", "usa": "USA", "united states": "USA", "canada": "CAN", "argentina": "ARG",
+  "brazil": "BRA", "france": "FRA", "england": "ENG", "spain": "ESP", "germany": "GER",
+  "portugal": "POR", "netherlands": "NED", "belgium": "BEL", "italy": "ITA", "croatia": "CRO",
+  "denmark": "DEN", "norway": "NOR", "sweden": "SWE", "poland": "POL", "serbia": "SRB",
+  "switzerland": "SUI", "austria": "AUT", "turkey": "TUR", "ukraine": "UKR", "scotland": "SCO",
+  "wales": "WAL", "hungary": "HUN", "greece": "GRE", "czech republic": "CZE", "uruguay": "URU",
+  "colombia": "COL", "chile": "CHI", "ecuador": "ECU", "peru": "PER", "paraguay": "PAR",
+  "venezuela": "VEN", "morocco": "MAR", "senegal": "SEN", "nigeria": "NGA", "egypt": "EGY",
+  "ghana": "GHA", "cameroon": "CMR", "algeria": "ALG", "tunisia": "TUN", "ivory coast": "CIV",
+  "south africa": "RSA", "japan": "JPN", "south korea": "KOR", "australia": "AUS",
+  "saudi arabia": "KSA", "iran": "IRN", "qatar": "QAT"
 };
 
 const COUNTRIES = Object.values(TEAM_ABBREVIATIONS).filter((v, i, a) => a.indexOf(v) === i).sort();
 
-const getFlag = (team: string) => {
-  const name = team.toLowerCase().trim();
-  const map: any = {
-    "mexico": "mx", "mexiko": "mx", "mexico republic": "mx", "mexico flag": "mx",
-    "usa": "us", "us": "us", "united states": "us",
-    "canada": "ca",
-    "argentina": "ar",
-    "brazil": "br",
-    "france": "fr",
-    "england": "gb-eng",
-    "spain": "es",
-    "germany": "de",
-    "portugal": "pt",
-    "netherlands": "nl",
-    "belgium": "be",
-    "italy": "it",
-    "croatia": "hr",
-    "denmark": "dk",
-    "norway": "no",
-    "sweden": "se",
-    "poland": "pl",
-    "serbia": "rs",
-    "switzerland": "ch",
-    "austria": "at",
-    "turkey": "tr",
-    "ukraine": "ua",
-    "scotland": "gb-sct",
-    "wales": "gb-wls",
-    "hungary": "hu",
-    "greece": "gr",
-    "czech republic": "cz", "tjeckien": "cz",
-    "uruguay": "uy",
-    "colombia": "co",
-    "chile": "cl",
-    "ecuador": "ec",
-    "peru": "pe",
-    "paraguay": "py",
-    "venezuela": "ve",
-    "morocco": "ma",
-    "senegal": "sn",
-    "nigeria": "ng",
-    "egypt": "eg",
-    "ghana": "gh",
-    "cameroon": "cm",
-    "algeria": "dz",
-    "tunisia": "tn",
-    "ivory coast": "ci",
-    "south africa": "za", "sydafrika": "za",
-    "japan": "jp",
-    "south korea": "kr", "sydkorea": "kr", "korea republic": "kr",
-    "australia": "au",
-    "saudi arabia": "sa",
-    "iran": "ir",
-    "qatar": "qa"
-  };
-  const code = map[name];
-  return code ? `https://flagcdn.com/w40/${code}.png` : null;
-};
-
-// --- NEW HELPER FOR CONSISTENT ABBREVIATIONS ---
 const getTeamLabel = (team: string): string => {
   if (!team) return "TBD";
   if (team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA") || team.toUpperCase().includes("LOSER")) {
-    // If it's a TBD team from a group (e.g., 1E, 2A), use that.
     const groupPosMatch = team.match(/[1-4][A-L]/); 
     if (groupPosMatch) return groupPosMatch[0];
     return "TBD";
@@ -136,38 +35,24 @@ const getTeamLabel = (team: string): string => {
   return TEAM_ABBREVIATIONS[team.toLowerCase().trim()] || team.substring(0, 3).toUpperCase();
 };
 
-const BracketMatch = ({ match }: { match?: any }) => {
-  const kickoffDate = match ? new Date(match.kickoff_time) : null;
-  const timeStr = kickoffDate ? kickoffDate.toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "";
-  const dateStr = kickoffDate ? kickoffDate.toLocaleString('en-GB', { day: '2-digit', month: 'short' }) : "";
-
-  if (!match) return <div className="min-w-[140px] h-[78px] text-[9px] text-slate-700 font-bold uppercase tracking-widest flex items-center justify-center italic bg-white/5 border border-white/5 rounded-xl">Match TBD</div>;
-
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col gap-1.5 min-w-[140px] hover:border-emerald-500/30 transition-colors group">
-      <div className="flex justify-between items-center text-[9px] border-b border-white/5 pb-1 mb-0.5">
-        <span className="font-black uppercase text-slate-600 bg-black/40 px-2 py-0.5 rounded-md italic shadow-inner">{`${dateStr} ${timeStr}`}</span>
-        {/* Match number removed as requested, keeping alignment with date */}
-      </div>
-      
-      <div className="flex justify-between items-center">
-        <span className={`text-[10px] font-bold uppercase flex items-center gap-1.5 ${match.settled && match.home_score > match.away_score ? "text-emerald-400" : "text-slate-400"}`}>
-          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2 object-cover rounded-sm shadow-sm" alt="" /> : <Target className="w-3.5 h-3.5 text-slate-700" />} 
-          <span className="truncate max-w-[100px] font-black">{getTeamLabel(match.home_team)}</span>
-        </span>
-        <span className="font-black text-white text-base tracking-tight tabular-nums">{match.settled ? match.home_score : "-"}</span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className={`text-[10px] font-bold uppercase flex items-center gap-1.5 ${match.settled && match.away_score > match.home_score ? "text-emerald-400" : "text-slate-400"}`}>
-          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2 object-cover rounded-sm shadow-sm" alt="" /> : <Target className="w-3.5 h-3.5 text-slate-700" />} 
-          <span className="truncate max-w-[100px] font-black">{getTeamLabel(match.away_team)}</span>
-        </span>
-        <span className="font-black text-white text-base tracking-tight tabular-nums">{match.settled ? match.away_score : "-"}</span>
-      </div>
-    </div>
-  );
+const getFlag = (team: string) => {
+  const name = team?.toLowerCase().trim();
+  const map: any = {
+    "usa": "us", "mexico": "mx", "canada": "ca", "argentina": "ar", "brazil": "br", "france": "fr",
+    "england": "gb-eng", "spain": "es", "germany": "de", "portugal": "pt", "netherlands": "nl",
+    "belgium": "be", "italy": "it", "croatia": "hr", "denmark": "dk", "norway": "no", "sweden": "se",
+    "poland": "pl", "serbia": "rs", "switzerland": "ch", "austria": "at", "turkey": "tr", "ukraine": "ua",
+    "scotland": "gb-sct", "wales": "gb-wls", "hungary": "hu", "greece": "gr", "czech republic": "cz",
+    "uruguay": "uy", "colombia": "co", "chile": "cl", "ecuador": "ec", "peru": "pe", "paraguay": "py",
+    "venezuela": "ve", "morocco": "ma", "senegal": "sn", "nigeria": "ng", "egypt": "eg", "ghana": "gh",
+    "cameroon": "cm", "algeria": "dz", "tunisia": "tn", "ivory coast": "ci", "south africa": "za",
+    "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa"
+  };
+  const code = map[name];
+  return code ? `https://flagcdn.com/w40/${code}.png` : null;
 };
 
+// --- MAIN APP ---
 export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -205,6 +90,7 @@ export default function WorldCupApp() {
     }
   };
 
+  // Auto-route matches tab based on current tournament date
   useEffect(() => {
     supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => {
       const fetchedMatches = data || [];
@@ -251,10 +137,7 @@ export default function WorldCupApp() {
       </header>
 
       <nav className="max-w-5xl mx-auto px-4 mt-6 flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide">
-        <button 
-          onClick={() => bonusCompleted && setView("matches")} 
-          className={`flex-1 min-w-[110px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
-        >
+        <button onClick={() => bonusCompleted && setView("matches")} className={`flex-1 min-w-[110px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}>
           {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
         </button>
         <NavBtn active={view === "bonus"} onClick={() => setView("bonus")} label="Bonus" />
@@ -263,8 +146,8 @@ export default function WorldCupApp() {
         <NavBtn active={view === "rules"} onClick={() => setView("rules")} label="Rules" />
       </nav>
 
-      <main className="max-w-[1400px] mx-auto px-4 mt-8"> {/* Reduced max width for better alignment of smaller components */}
-        {view === "matches" && <MatchList matches={matches} tab={tab} userId={user.id} />}
+      <main className="max-w-[1400px] mx-auto px-4 mt-8">
+        {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} />}
         {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => { setBonusCompleted(true); setView("matches"); }} />}
         {view === "stats" && <StatsPage matches={matches} />}
         {view === "leaderboard" && <Leaderboard />}
@@ -275,7 +158,7 @@ export default function WorldCupApp() {
   );
 }
 
-// --- STATS PAGE ---
+// --- STATS PAGE & FIFA-STYLE BRACKET ---
 function StatsPage({ matches }: { matches: any[] }) {
   const [subTab, setSubTab] = useState(1);
   const [players, setPlayers] = useState<any[]>([]);
@@ -299,14 +182,139 @@ function StatsPage({ matches }: { matches: any[] }) {
   );
 }
 
+// Compact Bracket Match Box
+const BracketMatch = ({ match, idLabel }: { match?: any, idLabel?: string }) => {
+  const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
+  const timeStr = kickoffDate ? kickoffDate.toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "";
+  const dateStr = kickoffDate ? kickoffDate.toLocaleString('en-GB', { month: '2-digit', day: '2-digit' }) : "";
+
+  const hWin = match?.settled && (match.home_score > match.away_score || match.penalty_winner_actual === 'home');
+  const aWin = match?.settled && (match.away_score > match.home_score || match.penalty_winner_actual === 'away');
+
+  if (!match) return (
+    <div className="relative flex justify-center items-center w-28 h-[46px] bg-[#1a1d24]/30 border border-white/5 rounded-md">
+      <span className="absolute bottom-full right-1 mb-0.5 text-[7px] font-bold text-amber-500/50 tracking-widest uppercase">{idLabel}</span>
+      <span className="text-[9px] font-black text-slate-700 italic">TBD</span>
+    </div>
+  );
+
+  return (
+    <div className={`relative flex flex-col justify-center w-28 h-[46px] bg-[#1a1d24] border ${match.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-md hover:border-emerald-500/50 transition-colors z-10`}>
+      <span className="absolute bottom-full left-0 mb-0.5 text-[7px] font-bold text-slate-500 tracking-widest uppercase">{dateStr} {timeStr}</span>
+      
+      <div className="w-full flex justify-between items-center px-1.5 py-0.5 border-b border-white/5 h-1/2">
+         <div className="flex items-center gap-1.5">
+           {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[9px] font-bold uppercase tracking-tight ${hWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.home_team)}</span>
+         </div>
+         <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.home_score : "-"}</span>
+      </div>
+      
+      <div className="w-full flex justify-between items-center px-1.5 py-0.5 h-1/2">
+         <div className="flex items-center gap-1.5">
+           {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[9px] font-bold uppercase tracking-tight ${aWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.away_team)}</span>
+         </div>
+         <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.away_score : "-"}</span>
+      </div>
+    </div>
+  );
+};
+
+// Bracket Column Wrapper
+const MatchColumn = ({ matchIds, matchMap }: { matchIds: string[], matchMap: Record<string, any> }) => (
+  <div className="flex flex-col justify-around h-full w-28 relative z-10">
+    {matchIds.map(id => (
+       <div key={id} className="flex justify-center w-full">
+          <BracketMatch match={matchMap[id]} idLabel={id} />
+       </div>
+    ))}
+  </div>
+);
+
+// Connecting Lines
+const BracketConnector = ({ forks, direction }: { forks: number, direction: 'right' | 'left' }) => (
+  <div className="flex flex-col w-6 h-full">
+    {Array.from({ length: forks }).map((_, i) => (
+      <div key={i} className={`flex-1 flex flex-col justify-center ${direction === 'right' ? 'items-start' : 'items-end'}`}>
+         <div className={`w-1/2 h-1/2 border-t-[1.5px] border-b-[1.5px] border-white/10 relative ${direction === 'right' ? 'border-r-[1.5px] rounded-r-md' : 'border-l-[1.5px] rounded-l-md'}`}>
+            <div className={`absolute top-1/2 w-full h-[1.5px] bg-white/10 -mt-[0.75px] ${direction === 'right' ? 'left-full' : 'right-full'}`}></div>
+         </div>
+      </div>
+    ))}
+  </div>
+);
+
+const SingleLine = () => (
+  <div className="flex flex-col w-6 h-full justify-center">
+     <div className="w-full h-[1.5px] bg-white/10" />
+  </div>
+);
+
+function KnockoutBracket({ matches }: { matches: any[] }) {
+  const matchMap = matches.reduce((map, m) => {
+    if (m.match_number) map[m.match_number as string] = m;
+    return map;
+  }, {} as Record<string, any>);
+
+  return (
+    <div className="bg-[#0b0d13] border border-white/5 rounded-3xl p-6 overflow-x-auto shadow-2xl scrollbar-hide">
+      <div className="flex min-w-[1240px] mb-2 text-[8px] font-black uppercase text-slate-500 tracking-widest text-center">
+         <div className="w-28">Round of 32</div><div className="w-6" />
+         <div className="w-28">Round of 16</div><div className="w-6" />
+         <div className="w-28">Quarter-Final</div><div className="w-6" />
+         <div className="w-28">Semi-Final</div><div className="w-6" />
+         <div className="w-40"></div><div className="w-6" />
+         <div className="w-28">Semi-Final</div><div className="w-6" />
+         <div className="w-28">Quarter-Final</div><div className="w-6" />
+         <div className="w-28">Round of 16</div><div className="w-6" />
+         <div className="w-28">Round of 32</div>
+      </div>
+      <div className="flex min-w-[1240px] h-[640px] items-center justify-center">
+        {/* LEFT Bracket */}
+        <MatchColumn matchIds={["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"]} matchMap={matchMap} />
+        <BracketConnector forks={4} direction="right" />
+        <MatchColumn matchIds={["M89", "M90", "M93", "M94"]} matchMap={matchMap} />
+        <BracketConnector forks={2} direction="right" />
+        <MatchColumn matchIds={["M97", "M98"]} matchMap={matchMap} />
+        <BracketConnector forks={1} direction="right" />
+        <MatchColumn matchIds={["M101"]} matchMap={matchMap} />
+        <SingleLine />
+        
+        {/* CENTER: Final & Bronze */}
+        <div className="flex flex-col justify-center items-center h-full w-40 relative z-10 mx-1">
+           <div className="absolute top-[8%] flex flex-col items-center">
+              <Trophy className="w-12 h-12 text-emerald-500 mb-2 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-4 shadow-emerald-500/10">The Final</span>
+           </div>
+           <div className="w-full flex justify-center z-20"><BracketMatch match={matchMap["M104"]} idLabel="M104" /></div>
+           <div className="absolute bottom-[8%] flex flex-col items-center w-full">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3 border-b border-white/10 pb-1">3rd Place Match</span>
+              <BracketMatch match={matchMap["M103"]} idLabel="M103" />
+           </div>
+        </div>
+
+        {/* RIGHT Bracket */}
+        <SingleLine />
+        <MatchColumn matchIds={["M102"]} matchMap={matchMap} />
+        <BracketConnector forks={1} direction="left" />
+        <MatchColumn matchIds={["M99", "M100"]} matchMap={matchMap} />
+        <BracketConnector forks={2} direction="left" />
+        <MatchColumn matchIds={["M91", "M92", "M95", "M96"]} matchMap={matchMap} />
+        <BracketConnector forks={4} direction="left" />
+        <MatchColumn matchIds={["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"]} matchMap={matchMap} />
+      </div>
+    </div>
+  );
+}
+
+// --- REMAINING STATS COMPONENTS ---
 function StandingsTable({ matches }: { matches: any[] }) {
   const groups = ['Group A', 'Group B', 'Group C', 'Group D', 'Group E', 'Group F', 'Group G', 'Group H', 'Group I', 'Group J', 'Group K', 'Group L'];
   
   const calculateGroup = (groupName: string) => {
     const table: any = {};
     const groupMatches = matches.filter(m => m.group_name === groupName && m.settled);
-    
-    // Initialize teams
     const groupTeams = Array.from(new Set(matches.filter(m => m.group_name === groupName).flatMap(m => [m.home_team, m.away_team])));
     groupTeams.forEach(t => table[t as string] = { name: t, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
 
@@ -322,7 +330,6 @@ function StandingsTable({ matches }: { matches: any[] }) {
       else { h.d++; a.d++; h.pts += 1; a.pts += 1; }
       h.gd = h.gf - h.ga; a.gd = a.gf - a.ga;
     });
-
     return Object.values(table).sort((a: any, b: any) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
   };
 
@@ -376,124 +383,28 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
-function KnockoutBracket({ matches }: { matches: any[] }) {
-  // Symmetrical full inwards structure with 32 teams (image_6.png)
-  const matchMap = matches.reduce((map, m) => {
-    if (m.match_number) map[m.match_number as string] = m;
-    return map;
-  }, {} as Record<string, any>);
-
-  const roundTitles = ["", "Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final / 3rd Place"];
-
-  return (
-    <div className="bg-[#07090d] border border-white/5 rounded-3xl p-10 overflow-x-auto shadow-2xl">
-      <div className="flex gap-12 min-w-[1500px] items-center text-center justify-between">
-        
-        {/* LEFT Bracket - Symmetrical outwards branching inwards inwards inwards flow inwards towards inwards center final inwards inwards inwards inwards center center final center inwards inwards flow inwards towards inwards inwards inwards cent cent final final centre center Final. (Symmetrical outwards flow inwards inwards central final.) */}
-        <div className="flex gap-12 items-center flex-col md:flex-row"> {/* Columns for larger screens, stack on small */}
-          {/* R32 Left */}
-          <div className="space-y-6">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
-            {["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
-          </div>
-          {/* R16 Left */}
-          <div className="space-y-26">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
-            {["M89", "M90", "M93", "M94"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
-          </div>
-          {/* QF Left */}
-          <div className="space-y-[190px]">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
-            {["M97", "M98"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
-          </div>
-          {/* SF Left */}
-          <div className="space-y-[380px]">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
-            {["M101"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
-          </div>
-        </div>
-
-        {/* CENTRAL: Final & 3rd Place */}
-        <div className="space-y-20 py-16 px-6 border border-emerald-500/10 rounded-3xl bg-emerald-500/5 shadow-inner">
-          <div className="space-y-4">
-            <Trophy className="w-16 h-16 text-emerald-500 mx-auto" />
-            <p className="text-[13px] font-black text-white uppercase tracking-widest italic leading-none shadow-emerald-500/10">The Final</p>
-            <BracketMatch match={matchMap["M104"]} />
-          </div>
-          <div className="space-y-4 pt-8 border-t border-white/5">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[5]}</p>
-            <BracketMatch match={matchMap["M103"]} />
-          </div>
-        </div>
-
-        {/* RIGHT Bracket */}
-        <div className="flex gap-12 items-center flex-col md:flex-row-reverse"> {/* Stack columns on small, flip order on md+ for symmetry */}
-          {/* R32 Right */}
-          <div className="space-y-6">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
-            {["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
-          </div>
-          {/* R16 Right */}
-          <div className="space-y-26">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
-            {["M91", "M92", "M95", "M96"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
-          </div>
-          {/* QF Right */}
-          <div className="space-y-[190px]">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
-            {["M99", "M100"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
-          </div>
-          {/* SF Right */}
-          <div className="space-y-[380px]">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
-            {["M102"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function TopPerformers({ players }: { players: any[] }) {
   const scorers = [...players].sort((a, b) => b.goals - a.goals).slice(0, 10);
   const assisters = [...players].sort((a, b) => b.assists - a.assists).slice(0, 10);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
       <section className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-lg">
-        <h3 className="p-6 text-xl font-black text-emerald-400 uppercase italic flex items-center gap-3">
-          <Goal className="w-6 h-6" /> Golden Boot
-        </h3>
+        <h3 className="p-6 text-xl font-black text-emerald-400 uppercase italic flex items-center gap-3"><Goal className="w-6 h-6" /> Golden Boot</h3>
         {scorers.length === 0 && <p className="text-center p-8 text-xs font-bold text-slate-500 uppercase tracking-widest">No stats yet.</p>}
         {scorers.map((p, i) => (
           <div key={p.id} className="px-6 py-4 flex justify-between items-center border-t border-white/5 last:border-0 hover:bg-white/5">
-            <div className="flex items-center gap-4">
-              <span className="text-slate-600 font-black italic w-4">{i + 1}</span>
-              <div>
-                <p className="font-black text-white uppercase leading-none tracking-tight">{p.name}</p>
-                <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{p.team}</p>
-              </div>
-            </div>
-            <span className="text-2xl font-black text-emerald-400 italic tabular-nums">{p.goals}</span>
+            <div className="flex items-center gap-4"><span className="text-slate-600 font-black italic w-4">{i + 1}</span><div><p className="font-black text-white uppercase leading-none tracking-tight">{p.name}</p><p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{p.team}</p></div></div><span className="text-2xl font-black text-emerald-400 italic tabular-nums">{p.goals}</span>
           </div>
         ))}
       </section>
 
       <section className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-lg">
-        <h3 className="p-6 text-xl font-black text-amber-400 uppercase italic flex items-center gap-3">
-          <Star className="w-6 h-6" /> Assist Kings
-        </h3>
+        <h3 className="p-6 text-xl font-black text-amber-400 uppercase italic flex items-center gap-3"><Star className="w-6 h-6" /> Assist Kings</h3>
         {assisters.length === 0 && <p className="text-center p-8 text-xs font-bold text-slate-500 uppercase tracking-widest">No stats yet.</p>}
         {assisters.map((p, i) => (
           <div key={p.id} className="px-6 py-4 flex justify-between items-center border-t border-white/5 last:border-0 hover:bg-white/5">
-            <div className="flex items-center gap-4">
-              <span className="text-slate-600 font-black italic w-4">{i + 1}</span>
-              <div>
-                <p className="font-black text-white uppercase leading-none tracking-tight">{p.name}</p>
-                <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{p.team}</p>
-              </div>
-            </div>
-            <span className="text-2xl font-black text-amber-400 italic tabular-nums">{p.assists}</span>
+            <div className="flex items-center gap-4"><span className="text-slate-600 font-black italic w-4">{i + 1}</span><div><p className="font-black text-white uppercase leading-none tracking-tight">{p.name}</p><p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-widest">{p.team}</p></div></div><span className="text-2xl font-black text-amber-400 italic tabular-nums">{p.assists}</span>
           </div>
         ))}
       </section>
@@ -501,108 +412,8 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- ADMIN PANEL ADDITIONS ---
-function AdminPanel({ matches }: any) {
-  const [scores, setScores] = useState<any>({});
-  const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
-
-  const addPlayer = async () => {
-    if (!newPlayer.name || !newPlayer.team) return alert("Fill in name and team!");
-    const { error } = await supabase.from("tournament_players").insert(newPlayer);
-    if(error) alert(error.message);
-    else { alert("Player added/updated!"); setNewPlayer({ name: "", team: "", goals: 0, assists: 0 }); }
-  };
-
-  const settleMatch = async (m: any) => {
-    const s = scores[m.id];
-    if (!s || s.h === "" || s.a === "") return alert("Enter scores!");
-    const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
-    if (!preds) return;
-    for (const p of preds) {
-      let pts = 0;
-      const actH = parseInt(s.h);
-      const actA = parseInt(s.a);
-      const isExact = p.pred_home === actH && p.pred_away === actA;
-      const isOutcome = (Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA));
-      if (m.sub_phase === 'group') pts = isExact ? 2 : (isOutcome ? 1 : 0);
-      else if (['r32', 'r16', 'quarter'].includes(m.sub_phase)) pts = isExact ? 3 : (isOutcome ? 2 : 0);
-      else if (m.sub_phase === 'semi') pts = isExact ? 4 : (isOutcome ? 3 : 0);
-      else if (m.sub_phase === 'bronze') pts = isExact ? 5 : (isOutcome ? 4 : 0);
-      else if (m.sub_phase === 'final') pts = isExact ? 6 : (isOutcome ? 5 : 0);
-      if (m.phase > 1 && actH === actA && p.penalty_winner_pred === s.pw) pts += 1;
-      if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
-    }
-    await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
-    alert(`Match Settled!`);
-  };
-
-  return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
-        <h2 className="text-amber-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Shield className="w-5 h-5" /> Admin: Match Scores</h2>
-        <div className="space-y-4">
-          {matches.filter((m: any) => !m.settled).map((m: any) => (
-            <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center group">
-              <span className="text-[10px] font-black uppercase tracking-tight text-slate-500 group-hover:text-white">{m.home_team} vs {m.away_team} ({m.sub_phase})</span>
-              <div className="flex gap-2">
-                <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
-                <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
-                {m.phase > 1 && (
-                  <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
-                    <option value="">PW?</option>
-                    <option value="home">Home</option>
-                    <option value="away">Away</option>
-                  </select>
-                )}
-                <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1 rounded font-black uppercase text-[9px]">Settle</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-emerald-400/5 border border-emerald-400/20 rounded-2xl p-6">
-        <h2 className="text-emerald-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Users className="w-5 h-5" /> Admin: Player Stats</h2>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <input type="text" placeholder="Player Name" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})} />
-          <input type="text" placeholder="Team" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, team: e.target.value})} />
-          <input type="number" placeholder="Goals" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, goals: parseInt(e.target.value) || 0})} />
-          <input type="number" placeholder="Assists" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, assists: parseInt(e.target.value) || 0})} />
-        </div>
-        <button onClick={addPlayer} className="w-full bg-emerald-500 text-black py-3 rounded-xl font-black uppercase text-xs tracking-widest">Update Player Database</button>
-      </div>
-    </div>
-  );
-}
-
-// --- REMAINING UTILS (Timer, Leaderboard, Auth, etc.) ---
-function NavBtn({ active, onClick, label }: any) {
-  return (
-    <button onClick={onClick} className={`flex-1 min-w-[90px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
-      {label}
-    </button>
-  );
-}
-
-function WelcomePopup({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl grid place-items-center p-6">
-      <div className="bg-[#0f1117] border border-white/10 rounded-[2.5rem] p-10 max-w-md w-full relative shadow-2xl text-center">
-        <Sparkles className="text-amber-400 w-12 h-12 mb-6 mx-auto animate-pulse" />
-        <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none">Welcome to the <br/><span className="text-emerald-400">Cup League</span></h2>
-        <div className="space-y-4 text-slate-400 text-sm leading-relaxed">
-          <p>Predict match scores and nail your tournament bonuses to win. Correct scores earn the most points, so choose wisely!</p>
-          <div className="bg-emerald-500/10 text-emerald-400 font-bold p-4 rounded-2xl border border-emerald-500/20 text-xs uppercase tracking-tight">
-            ⚠️ FIRST STEP: You must complete your <span className="underline italic">Bonus Predictions</span>. The Matches tab will unlock once you save them!
-          </div>
-        </div>
-        <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all">Let's Get Started</button>
-      </div>
-    </div>
-  );
-}
-
-function MatchList({ matches, tab, userId }: any) {
+// --- OTHER APP VIEWS (MatchList, Bonus, Admin, Leaderboard, etc.) ---
+function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   const groupEnd = matches.filter((m: any) => m.sub_phase === 'group').slice(-1)[0];
   const r32End = matches.filter((m: any) => m.sub_phase === 'r32').slice(-1)[0];
@@ -631,11 +442,11 @@ function MatchList({ matches, tab, userId }: any) {
     <div className="max-w-5xl mx-auto">
       <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />
       <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
-        <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={() => {}} />
-        <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={() => {}} />
-        <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={() => {}} />
-        <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={() => {}} />
-        <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={() => {}} />
+        <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
+        <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
+        <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
+        <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
+        <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
       </div>
       <div className="grid gap-4">
         {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
@@ -806,6 +617,79 @@ function Leaderboard() {
           <span className="text-amber-400 font-black text-2xl italic tabular-nums leading-none tracking-tight">{p.total_points}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function AdminPanel({ matches }: any) {
+  const [scores, setScores] = useState<any>({});
+  const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
+
+  const addPlayer = async () => {
+    if (!newPlayer.name || !newPlayer.team) return alert("Fill in name and team!");
+    const { error } = await supabase.from("tournament_players").insert(newPlayer);
+    if(error) alert(error.message);
+    else { alert("Player added/updated!"); setNewPlayer({ name: "", team: "", goals: 0, assists: 0 }); }
+  };
+
+  const settleMatch = async (m: any) => {
+    const s = scores[m.id];
+    if (!s || s.h === "" || s.a === "") return alert("Enter scores!");
+    const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
+    if (!preds) return;
+    for (const p of preds) {
+      let pts = 0;
+      const actH = parseInt(s.h);
+      const actA = parseInt(s.a);
+      const isExact = p.pred_home === actH && p.pred_away === actA;
+      const isOutcome = (Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA));
+      if (m.sub_phase === 'group') pts = isExact ? 2 : (isOutcome ? 1 : 0);
+      else if (['r32', 'r16', 'quarter'].includes(m.sub_phase)) pts = isExact ? 3 : (isOutcome ? 2 : 0);
+      else if (m.sub_phase === 'semi') pts = isExact ? 4 : (isOutcome ? 3 : 0);
+      else if (m.sub_phase === 'bronze') pts = isExact ? 5 : (isOutcome ? 4 : 0);
+      else if (m.sub_phase === 'final') pts = isExact ? 6 : (isOutcome ? 5 : 0);
+      if (m.phase > 1 && actH === actA && p.penalty_winner_pred === s.pw) pts += 1;
+      if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
+    }
+    await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
+    alert(`Match Settled!`);
+  };
+
+  return (
+    <div className="space-y-8 max-w-5xl mx-auto">
+      <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
+        <h2 className="text-amber-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Shield className="w-5 h-5" /> Admin: Match Scores</h2>
+        <div className="space-y-4">
+          {matches.filter((m: any) => !m.settled).map((m: any) => (
+            <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center group">
+              <span className="text-[10px] font-black uppercase tracking-tight text-slate-500 group-hover:text-white">{m.home_team} vs {m.away_team} ({m.sub_phase})</span>
+              <div className="flex gap-2">
+                <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
+                <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
+                {m.phase > 1 && (
+                  <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
+                    <option value="">PW?</option>
+                    <option value="home">Home</option>
+                    <option value="away">Away</option>
+                  </select>
+                )}
+                <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1 rounded font-black uppercase text-[9px] italic shadow-md">Settle</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-emerald-400/5 border border-emerald-400/20 rounded-2xl p-6">
+        <h2 className="text-emerald-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Users className="w-5 h-5" /> Admin: Player Stats</h2>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <input type="text" placeholder="Player Name" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})} />
+          <input type="text" placeholder="Team" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, team: e.target.value})} />
+          <input type="number" placeholder="Goals" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, goals: parseInt(e.target.value) || 0})} />
+          <input type="number" placeholder="Assists" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, assists: parseInt(e.target.value) || 0})} />
+        </div>
+        <button onClick={addPlayer} className="w-full bg-emerald-500 text-black py-3 rounded-xl font-black uppercase text-xs tracking-widest">Update Player Database</button>
+      </div>
     </div>
   );
 }
