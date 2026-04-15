@@ -57,9 +57,9 @@ export default function WorldCupApp() {
         <div className="flex items-center gap-4">
           <div className="text-right">
             <p className="text-[10px] text-slate-500 uppercase tracking-widest leading-none">Poäng</p>
-            <p className="text-amber-400 font-bold text-lg leading-none">{profile.total_points || 0}</p>
+            <p className="text-amber-400 font-bold text-lg leading-none">{profile?.total_points || 0}</p>
           </div>
-          {user.email === ADMIN_EMAIL && <Settings onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
+          {user?.email === ADMIN_EMAIL && <Settings onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
           <LogOut onClick={() => supabase.auth.signOut()} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
         </div>
       </header>
