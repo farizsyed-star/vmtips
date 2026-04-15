@@ -185,10 +185,10 @@ export default function WorldCupApp() {
           </div>
         </header>
 
-        <nav className="max-w-[1400px] mx-auto px-4 pb-4 flex gap-1 overflow-x-auto scrollbar-hide">
+        <nav className="max-w-[1400px] mx-auto px-4 pb-4 flex gap-1 md:gap-2 overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => bonusCompleted && setView("matches")} 
-            className={`flex-1 md:flex-none md:w-32 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
+            className={`flex-1 md:flex-none md:w-28 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
           >
             {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
           </button>
@@ -616,7 +616,7 @@ function AdminPanel({ matches }: any) {
 
 function NavBtn({ active, onClick, label }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 md:w-32 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+    <button onClick={onClick} className={`flex-1 md:flex-none md:w-28 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
       {label}
     </button>
   );
@@ -726,12 +726,12 @@ function MatchList({ matches, tab, setTab, userId }: any) {
       {/* CENTER: Main Matches Content */}
       <div className="col-span-1 lg:col-span-2">
         <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide w-full">
-            <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
-            <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
-            <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
-            <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
-            <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
+          <div className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide w-full justify-between">
+            <PhaseTab id={1} label="Group" active={tab === 1} onClick={setTab} />
+            <PhaseTab id={2} label="R32" active={tab === 2} onClick={setTab} />
+            <PhaseTab id={3} label="R16" active={tab === 3} onClick={setTab} />
+            <PhaseTab id={4} label="QF & SF" active={tab === 4} onClick={setTab} />
+            <PhaseTab id={5} label="Finals" active={tab === 5} onClick={setTab} />
             <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
           </div>
         </div>
@@ -1126,12 +1126,8 @@ function RulesPage() {
             <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 4, 2026 · 18:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Quarter-Finals</span>
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Quarter-Finals & Semi-Finals</span>
             <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 9, 2026 · 21:00</span>
-          </li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Semi-Finals</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 14, 2026 · 21:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <span className="font-black text-white uppercase tracking-widest text-[10px]">The Finals</span>
