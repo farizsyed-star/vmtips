@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, Settings, LogOut, CheckCircle, BookOpen, Clock, Globe } from "lucide-react";
+import { Trophy, Shield, Settings, LogOut, CheckCircle, BookOpen, Clock, Globe, Timer } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
 const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
-// Extensive Flag Mapping for all 48+ potential teams
+// Extensive Flag Mapping
 const getFlag = (team: string) => {
   if (!team || team.toUpperCase().includes("TBA")) return "https://flagcdn.com/w40/un.png";
   const name = team.toLowerCase().trim();
@@ -43,6 +43,59 @@ const COUNTRIES = [
   "Spain", "Sweden", "Switzerland", "Tunisia", "Turkey", "Ukraine", "Uruguay", "USA", "Wales"
 ].sort();
 
+// --- COUNTDOWN COMPONENT ---
+function CountdownTimer({ targetDate, label }: { targetDate: Date, label: string }) {
+  const [timeLeft, setTimeLeft] = useState<any>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = targetDate.getTime() - now;
+      if (distance < 0) {
+        setTimeLeft("LOCKED");
+        clearInterval(timer);
+      } else {
+        const d = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((distance % (1000 * 60)) / 1000);
+        setTimeLeft({ d, h, m, s });
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  if (!timeLeft) return null;
+
+  return (
+    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6 shadow-lg shadow-emerald-500/5">
+      <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
+      {timeLeft === "LOCKED" ? (
+        <span className="text-rose-500 font-black uppercase text-sm italic tracking-widest flex items-center gap-2">
+          <AlertCircle className="w-4 h-4" /> Locked
+        </span>
+      ) : (
+        <div className="flex gap-4 text-white font-black italic">
+          <TimeBlock unit="Days" val={timeLeft.d} />
+          <TimeBlock unit="Hours" val={timeLeft.h} />
+          <TimeBlock unit="Mins" val={timeLeft.m} />
+          <TimeBlock unit="Secs" val={timeLeft.s} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TimeBlock({ unit, val }: any) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-2xl leading-none tabular-nums tracking-tighter">{val.toString().padStart(2, '0')}</span>
+      <span className="text-[8px] text-slate-500 not-italic uppercase font-bold mt-1 tracking-widest">{unit}</span>
+    </div>
+  );
+}
+
+// --- MAIN APP COMPONENT ---
 export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -124,14 +177,16 @@ function NavBtn({ active, onClick, label }: any) {
 
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
-  const isRoundLocked = (mPhase: number) => {
-    if (mPhase === 1) return now > TOURNAMENT_START;
-    const firstOfPhase = matches.find((m: any) => m.phase === mPhase);
-    return firstOfPhase ? now > new Date(firstOfPhase.kickoff_time) : false;
-  };
+  
+  // Find the first match of the current tab to use as the lock time
+  const firstMatchOfTab = matches.find((m: any) => m.phase === tab);
+  const lockTime = tab === 1 ? TOURNAMENT_START : (firstMatchOfTab ? new Date(firstMatchOfTab.kickoff_time) : TOURNAMENT_START);
+  const isLocked = now > lockTime;
 
   return (
     <>
+      <CountdownTimer targetDate={lockTime} label={`Locking ${tab === 1 ? "Group Stages" : tab === 2 ? "Knockout 1/16 - 1/4" : "Semis & Finals"} in`} />
+      
       <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2">
         <PhaseTab id={1} label="Group Stages" active={tab === 1} onClick={setTab} />
         <PhaseTab id={2} label="Knockout 1/16 - 1/4" active={tab === 2} onClick={setTab} />
@@ -139,11 +194,8 @@ function MatchList({ matches, tab, setTab, userId }: any) {
       </div>
       <div className="grid gap-4">
         {matches.filter((m: any) => m.phase === tab).map((m: any) => (
-          <MatchCard key={m.id} match={m} userId={userId} locked={isRoundLocked(m.phase)} />
+          <MatchCard key={m.id} match={m} userId={userId} locked={isLocked} />
         ))}
-        {matches.filter((m: any) => m.phase === tab).length === 0 && (
-          <div className="text-center py-10 text-slate-600 text-[10px] font-black uppercase tracking-widest italic">No fixtures found in this category yet.</div>
-        )}
       </div>
     </>
   );
@@ -211,8 +263,8 @@ function MatchCard({ match, userId, locked }: any) {
         <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
           <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner Bonus (+1pt)</p>
           <div className="flex gap-2 bg-black/40 p-1 rounded-xl">
-            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
-            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"}`}>{match.home_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"}`}>{match.away_team}</button>
           </div>
         </div>
       )}
@@ -242,29 +294,32 @@ function BonusPage({ userId }: any) {
   };
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8">
-      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline decoration-emerald-500 tracking-tight italic">Tournament Bonus</h2>
-      <div className="space-y-6">
-        <BonusField label="Top Scorer" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={locked} />
-        <BonusField label="Top Assister" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={locked} />
-        
-        <div>
-          <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Team with Most Cards</p>
-          <select 
-            disabled={locked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})}
-            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer"
-          >
-            <option value="">Select Country</option>
-            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
+    <div className="space-y-6">
+      <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Questions Lock In" />
+      
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8">
+        <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline decoration-emerald-500 tracking-tight">Tournament Bonus</h2>
+        <div className="space-y-6">
+          <BonusField label="Top Scorer" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={locked} />
+          <BonusField label="Top Assister" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={locked} />
+          
+          <div>
+            <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Team with Most Cards</p>
+            <select 
+              disabled={locked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer"
+            >
+              <option value="">Select Country</option>
+              {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
 
-        <BonusField label="Tournament MVP" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={locked} />
-        <BonusField label="Total Goals Scored" value={form.goals} onChange={(v) => setForm({...form, goals: v.replace(/[^0-9]/g, "")})} disabled={locked} type="number" />
-        
-        {!locked && <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest mt-4 shadow-lg shadow-emerald-500/10 hover:scale-[1.01] transition-all italic">Save Predictions</button>}
-        {saved && <p className="text-center text-[10px] text-emerald-400 font-black italic mt-2 uppercase">Saved successfully!</p>}
-        {locked && <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-[10px] font-black uppercase text-center">Bonus predictions are locked</div>}
+          <BonusField label="Tournament MVP" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={locked} />
+          <BonusField label="Total Goals Scored" value={form.goals} onChange={(v) => setForm({...form, goals: v.replace(/[^0-9]/g, "")})} disabled={locked} type="number" />
+          
+          {!locked && <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest mt-4 shadow-lg shadow-emerald-500/10 hover:scale-[1.01] transition-all">Save Predictions</button>}
+          {saved && <p className="text-center text-[10px] text-emerald-400 font-black italic mt-2 uppercase">Saved successfully!</p>}
+        </div>
       </div>
     </div>
   );
@@ -307,7 +362,39 @@ function Leaderboard() {
 }
 
 function AdminPanel({ matches }: any) {
+  const [scores, setScores] = useState<any>({});
   const [totalGoalsActual, setTotalGoalsActual] = useState("");
+
+  const settleMatch = async (m: any) => {
+    const s = scores[m.id];
+    if (!s || s.h === "" || s.a === "") return alert("Enter scores first!");
+    
+    const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
+    if (!preds) return;
+
+    for (const p of preds) {
+      let pts = 0;
+      const actualH = parseInt(s.h);
+      const actualA = parseInt(s.a);
+      
+      const isExact = p.pred_home === actualH && p.pred_away === actualA;
+      const isOutcome = (Math.sign(p.pred_home - p.pred_away) === Math.sign(actualH - actualA));
+      
+      if (m.sub_phase === 'group') { pts = isExact ? 2 : (isOutcome ? 1 : 0); } 
+      else if (m.sub_phase === 'r16' || m.sub_phase === 'quarter') { pts = isExact ? 3 : (isOutcome ? 2 : 0); } 
+      else if (m.sub_phase === 'semi') { pts = isExact ? 4 : (isOutcome ? 3 : 0); } 
+      else if (m.sub_phase === 'bronze') { pts = isExact ? 5 : (isOutcome ? 4 : 0); } 
+      else if (m.sub_phase === 'final') { pts = isExact ? 6 : (isOutcome ? 5 : 0); }
+
+      if (m.phase > 1 && actualH === actualA && p.penalty_winner_pred === s.pw) { pts += 1; }
+
+      if (pts > 0) { await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts }); }
+    }
+
+    await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
+    alert(`Match Settled! Points calculated for ${preds.length} users.`);
+  };
+
   const settleTotalGoals = async () => {
     const actual = parseInt(totalGoalsActual);
     if (isNaN(actual)) return alert("Enter actual total goals first!");
@@ -321,6 +408,7 @@ function AdminPanel({ matches }: any) {
     }
     alert("Total Goals points settled for winners!");
   };
+
   return (
     <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
       <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline"><Shield className="w-5 h-5" /> Admin Settlement</h2>
@@ -333,9 +421,22 @@ function AdminPanel({ matches }: any) {
       </div>
       <div className="space-y-4">
         {matches.filter((m: any) => !m.settled).map((m: any) => (
-          <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center">
-            <span className="text-[10px] font-black uppercase tracking-tight">{m.home_team} vs {m.away_team}</span>
-            <button className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-black uppercase text-[9px] hover:scale-[1.02] transition-all italic">Settle Match</button>
+          <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-[10px] font-black uppercase tracking-tight">{m.home_team} vs {m.away_team}</span>
+              <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-black uppercase text-[9px] hover:scale-[1.02] transition-all italic">Settle Match</button>
+            </div>
+            <div className="flex gap-2">
+              <input type="number" placeholder="H" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-center" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
+              <input type="number" placeholder="A" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-center" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
+              {m.phase > 1 && (
+                <select className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[9px]" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
+                  <option value="">PW?</option>
+                  <option value="home">{m.home_team}</option>
+                  <option value="away">{m.away_team}</option>
+                </select>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -359,7 +460,7 @@ function RulesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <section className="bg-emerald-500/5 p-6 rounded-2xl border border-emerald-500/20">
           <h3 className="text-emerald-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Penalties Bonus</h3>
-          <p className="text-xs text-slate-400 leading-relaxed italic font-medium">In knockouts, if it&apos;s a draw after 120m, get <span className="text-white font-bold">+1 bonus point</span> for the correct Penalty Winner.</p>
+          <p className="text-xs text-slate-400 leading-relaxed italic font-medium">In knockouts, if it's a draw after 120m, get <span className="text-white font-bold">+1 bonus point</span> for the correct Penalty Winner.</p>
         </section>
         <section className="bg-amber-500/5 p-6 rounded-2xl border border-amber-500/20">
           <h3 className="text-amber-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Total Goals Bonus</h3>
