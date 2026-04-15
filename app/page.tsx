@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, Settings, LogOut, CheckCircle, BookOpen, Clock, Globe, AlertCircle, Lock } from "lucide-react";
+import { Trophy, Shield, Settings, LogOut, CheckCircle, BookOpen, Clock, Globe, AlertCircle, Lock, Users } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
@@ -10,7 +10,9 @@ const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
 // Extensive Flag Mapping
 const getFlag = (team: string) => {
-  if (!team || team.toUpperCase().includes("TBA")) return "https://flagcdn.com/w40/un.png";
+  if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA")) {
+    return null; // Return null to show a placeholder icon instead
+  }
   const name = team.toLowerCase().trim();
   const map: any = {
     "usa": "us", "mexico": "mx", "canada": "ca", "argentina": "ar", "brazil": "br", "france": "fr",
@@ -23,7 +25,8 @@ const getFlag = (team: string) => {
     "cameroon": "cm", "algeria": "dz", "tunisia": "tn", "ivory coast": "ci", "south africa": "za",
     "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa"
   };
-  return `https://flagcdn.com/w40/${map[name] || "un"}.png`;
+  const code = map[name];
+  return code ? `https://flagcdn.com/w40/${code}.png` : null;
 };
 
 const COUNTRIES = [
@@ -35,7 +38,8 @@ const COUNTRIES = [
   "Spain", "Sweden", "Switzerland", "Tunisia", "Turkey", "Ukraine", "Uruguay", "USA", "Wales"
 ].sort();
 
-// --- COUNTDOWN COMPONENT ---
+// --- COMPONENTS ---
+
 function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | null, label: string, isPending?: boolean }) {
   const [timeLeft, setTimeLeft] = useState<any>(null);
 
@@ -59,11 +63,11 @@ function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | n
   }, [targetDate, isPending]);
 
   return (
-    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6">
-      <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-widest">{label}</p>
+    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6 shadow-lg shadow-emerald-500/5">
+      <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
       {isPending ? (
         <span className="text-slate-500 font-black uppercase text-xs italic tracking-widest flex items-center gap-2">
-          <Lock className="w-3 h-3" /> Waiting for previous stage...
+          <Lock className="w-3 h-3" /> Awaiting Previous Stage
         </span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm italic tracking-widest flex items-center gap-2">
@@ -76,7 +80,7 @@ function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | n
           <TimeBlock unit="Mins" val={timeLeft.m} />
           <TimeBlock unit="Secs" val={timeLeft.s} />
         </div>
-      ) : <span className="text-slate-600 animate-pulse">...</span>}
+      ) : <span className="text-slate-600 font-black animate-pulse">...</span>}
     </div>
   );
 }
@@ -84,13 +88,12 @@ function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | n
 function TimeBlock({ unit, val }: any) {
   return (
     <div className="flex flex-col items-center">
-      <span className="text-2xl leading-none tabular-nums">{val.toString().padStart(2, '0')}</span>
+      <span className="text-2xl leading-none tabular-nums tracking-tighter">{val.toString().padStart(2, '0')}</span>
       <span className="text-[8px] text-slate-500 not-italic uppercase font-bold mt-1 tracking-widest">{unit}</span>
     </div>
   );
 }
 
-// --- MAIN APP COMPONENT ---
 export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -132,11 +135,11 @@ export default function WorldCupApp() {
       <header className="border-b border-white/5 bg-black/40 backdrop-blur-md sticky top-0 z-50 px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Trophy className="text-emerald-500 w-5 h-5" />
-          <h1 className="font-black text-xl text-white uppercase italic">World Cup <span className="text-emerald-400">2026</span></h1>
+          <h1 className="font-black text-xl text-white uppercase italic tracking-tighter">World Cup <span className="text-emerald-400">2026</span></h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-[8px] text-slate-500 uppercase font-black leading-none">Points</p>
+            <p className="text-[8px] text-slate-500 uppercase font-black leading-none tracking-widest">Points</p>
             <p className="text-amber-400 font-black text-xl leading-none">{profile?.total_points || 0}</p>
           </div>
           {user?.email === ADMIN_EMAIL && <Shield onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
@@ -144,7 +147,7 @@ export default function WorldCupApp() {
         </div>
       </header>
 
-      <nav className="max-w-5xl mx-auto px-4 mt-6 flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto">
+      <nav className="max-w-5xl mx-auto px-4 mt-6 flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide">
         <NavBtn active={view === "matches"} onClick={() => setView("matches")} label="Matches" />
         <NavBtn active={view === "bonus"} onClick={() => setView("bonus")} label="Bonus" />
         <NavBtn active={view === "leaderboard"} onClick={() => setView("leaderboard")} label="Leaderboard" />
@@ -170,8 +173,10 @@ function NavBtn({ active, onClick, label }: any) {
   );
 }
 
+// --- MATCH LIST WITH BRACKET VIEW ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
+  
   const lastMatchP1 = matches.filter((m: any) => m.phase === 1).slice(-1)[0];
   const lastMatchP2 = matches.filter((m: any) => m.phase === 2).slice(-1)[0];
   const firstMatchP2 = matches.find((m: any) => m.phase === 2);
@@ -184,12 +189,13 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   let isPending = false;
   let matchesLocked = false;
 
-  if (tab === 1) { lockTime = TOURNAMENT_START; matchesLocked = now > TOURNAMENT_START; } 
-  else if (tab === 2) {
+  if (tab === 1) {
+    lockTime = TOURNAMENT_START;
+    matchesLocked = now > TOURNAMENT_START;
+  } else if (tab === 2) {
     if (!isP1Finished) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstMatchP2 ? new Date(firstMatchP2.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
-  } 
-  else if (tab === 3) {
+  } else if (tab === 3) {
     if (!isP2Finished) { isPending = true; matchesLocked = true; } 
     else { lockTime = firstMatchP3 ? new Date(firstMatchP3.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
   }
@@ -197,20 +203,17 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   return (
     <>
       <CountdownTimer targetDate={lockTime} label={`Locking ${tab === 1 ? "Group Stages" : tab === 2 ? "Knockout 1/16 - 1/4" : "Semis & Finals"} in`} isPending={isPending} />
-      <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2">
+      
+      <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
         <PhaseTab id={1} label="Group Stages" active={tab === 1} onClick={setTab} />
         <PhaseTab id={2} label="Knockout 1/16 - 1/4" active={tab === 2} onClick={setTab} />
         <PhaseTab id={3} label="Semis & Finals" active={tab === 3} onClick={setTab} />
       </div>
+
       <div className="grid gap-4">
-        {isPending ? (
-          <div className="py-20 text-center flex flex-col items-center gap-4 bg-white/5 rounded-3xl border border-dashed border-white/10">
-            <Lock className="w-8 h-8 text-slate-700" />
-            <p className="text-slate-500 font-black uppercase text-[10px] tracking-widest italic">Stage unlocks once previous phase is complete.</p>
-          </div>
-        ) : (
-          matches.filter((m: any) => m.phase === tab).map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} />)
-        )}
+        {matches.filter((m: any) => m.phase === tab).map((m: any) => (
+          <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />
+        ))}
       </div>
     </>
   );
@@ -218,11 +221,13 @@ function MatchList({ matches, tab, setTab, userId }: any) {
 
 function PhaseTab({ id, label, active, onClick }: any) {
   return (
-    <button onClick={() => onClick(id)} className={`whitespace-nowrap pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${active ? "border-b-2 border-emerald-400 text-white" : "text-slate-600"}`}>{label}</button>
+    <button onClick={() => onClick(id)} className={`whitespace-nowrap pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${active ? "border-b-2 border-emerald-400 text-white" : "text-slate-600"}`}>
+      {label}
+    </button>
   );
 }
 
-function MatchCard({ match, userId, locked }: any) {
+function MatchCard({ match, userId, locked, isPending }: any) {
   const [pred, setPred] = useState({ h: "", a: "", pw: "" });
   const [saved, setSaved] = useState(false);
 
@@ -239,8 +244,11 @@ function MatchCard({ match, userId, locked }: any) {
     if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2000); }
   };
 
+  const flagH = getFlag(match.home_team);
+  const flagA = getFlag(match.away_team);
+
   return (
-    <div className={`bg-white/5 border rounded-2xl p-6 transition-all ${locked ? "border-white/5 opacity-80" : "border-white/10 hover:border-emerald-500/30"}`}>
+    <div className={`bg-white/5 border rounded-2xl p-6 transition-all ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
@@ -248,39 +256,44 @@ function MatchCard({ match, userId, locked }: any) {
             {new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
           {match.group_name && <span className="bg-emerald-500/10 text-emerald-400 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter italic">{match.group_name}</span>}
+          {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1"><Lock className="w-2 h-2" /> Bracket View</span>}
         </div>
         <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest">{match.channel}</span>
       </div>
+      
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
-          <img src={getFlag(match.home_team)} className="w-10 h-6 object-cover rounded shadow-md" alt="" />
-          <span className="font-black text-xs uppercase text-center truncate w-full tracking-tight">{match.home_team}</span>
+          {flagH ? <img src={flagH} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
+          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!flagH ? "text-slate-500 italic text-[10px]" : ""}`}>{match.home_team}</span>
         </div>
+        
         <div className="flex gap-2">
           <input type="number" min="0" disabled={locked} value={pred.h} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
             onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} 
-            className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none" placeholder="-" 
+            className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none disabled:text-slate-700" placeholder="-" 
           />
           <input type="number" min="0" disabled={locked} value={pred.a} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
             onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} 
-            className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none" placeholder="-" 
+            className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none disabled:text-slate-700" placeholder="-" 
           />
         </div>
+
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
-          <img src={getFlag(match.away_team)} className="w-10 h-6 object-cover rounded shadow-md" alt="" />
-          <span className="font-black text-xs uppercase text-center truncate w-full tracking-tight">{match.away_team}</span>
+          {flagA ? <img src={flagA} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
+          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!flagA ? "text-slate-500 italic text-[10px]" : ""}`}>{match.away_team}</span>
         </div>
       </div>
+
       {pred.h !== "" && pred.h === pred.a && match.phase > 1 && !locked && (
         <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
           <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner Bonus (+1pt)</p>
           <div className="flex gap-2 bg-black/40 p-1 rounded-xl">
-            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
-            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black" : "text-slate-500"}`}>{match.home_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black" : "text-slate-500"}`}>{match.away_team}</button>
           </div>
         </div>
       )}
-      {saved && <div className="mt-2 text-center text-[9px] text-emerald-400 font-black uppercase italic tracking-tighter">Prediction Saved</div>}
+      {saved && <div className="mt-2 text-center text-[9px] text-emerald-400 font-black uppercase italic tracking-tighter">Prediction Locked & Saved</div>}
     </div>
   );
 }
@@ -308,20 +321,27 @@ function BonusPage({ userId }: any) {
   return (
     <div className="space-y-6">
       <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Questions Lock In" />
+      
       <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8">
         <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline decoration-emerald-500 tracking-tight italic">Tournament Bonus</h2>
         <div className="space-y-6">
           <BonusField label="Top Scorer" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={locked} />
           <BonusField label="Top Assister" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={locked} />
+          
           <div>
             <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Team with Most Cards</p>
-            <select disabled={locked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer">
+            <select 
+              disabled={locked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer"
+            >
               <option value="">Select Country</option>
               {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+
           <BonusField label="Tournament MVP" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={locked} />
           <BonusField label="Total Goals Scored" value={form.goals} onChange={(v) => setForm({...form, goals: v.replace(/[^0-9]/g, "")})} disabled={locked} type="number" />
+          
           {!locked && <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest mt-4 shadow-lg shadow-emerald-500/10 hover:scale-[1.01] transition-all italic">Save Predictions</button>}
           {saved && <p className="text-center text-[10px] text-emerald-400 font-black italic mt-2 uppercase">Saved successfully!</p>}
         </div>
@@ -334,7 +354,8 @@ function BonusField({ label, value, onChange, disabled, type="text" }: any) {
   return (
     <div>
       <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">{label}</p>
-      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => type === 'number' && (e.key === '-' || e.key === 'e') && e.preventDefault()}
+      <input 
+        type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => type === 'number' && (e.key === '-' || e.key === 'e') && e.preventDefault()}
         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold"
       />
     </div>
@@ -372,24 +393,31 @@ function AdminPanel({ matches }: any) {
   const settleMatch = async (m: any) => {
     const s = scores[m.id];
     if (!s || s.h === "" || s.a === "") return alert("Enter scores first!");
+    
     const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
     if (!preds) return;
+
     for (const p of preds) {
       let pts = 0;
       const actualH = parseInt(s.h);
       const actualA = parseInt(s.a);
+      
       const isExact = p.pred_home === actualH && p.pred_away === actualA;
       const isOutcome = (Math.sign(p.pred_home - p.pred_away) === Math.sign(actualH - actualA));
+      
       if (m.sub_phase === 'group') { pts = isExact ? 2 : (isOutcome ? 1 : 0); } 
       else if (m.sub_phase === 'r16' || m.sub_phase === 'quarter') { pts = isExact ? 3 : (isOutcome ? 2 : 0); } 
       else if (m.sub_phase === 'semi') { pts = isExact ? 4 : (isOutcome ? 3 : 0); } 
       else if (m.sub_phase === 'bronze') { pts = isExact ? 5 : (isOutcome ? 4 : 0); } 
       else if (m.sub_phase === 'final') { pts = isExact ? 6 : (isOutcome ? 5 : 0); }
+
       if (m.phase > 1 && actualH === actualA && p.penalty_winner_pred === s.pw) { pts += 1; }
+
       if (pts > 0) { await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts }); }
     }
+
     await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
-    alert(`Match Settled! Points calculated.`);
+    alert(`Match Settled! Points calculated for ${preds.length} users.`);
   };
 
   const settleTotalGoals = async () => {
@@ -403,24 +431,37 @@ function AdminPanel({ matches }: any) {
       const pts = diff === 0 ? 10 : (diff === minDiff ? 5 : 0);
       if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
     }
-    alert("Total Goals settled!");
+    alert("Total Goals points settled for winners!");
   };
 
   return (
     <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
-      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline"><Shield className="w-5 h-5" /> Admin Settlement</h2>
+      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline tracking-tight italic"><Shield className="w-5 h-5" /> Admin Settlement</h2>
       <div className="mb-8 p-4 bg-black/40 rounded-xl border border-white/5">
         <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Final Tournament Total Goals</p>
         <div className="flex gap-2">
-          <input type="number" value={totalGoalsActual} onChange={(e) => setTotalGoalsActual(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 font-bold" placeholder="Final Total" />
+          <input type="number" value={totalGoalsActual} onChange={(e) => setTotalGoalsActual(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 font-bold text-white outline-none focus:border-amber-400" placeholder="Final Total" />
           <button onClick={settleTotalGoals} className="bg-amber-400 text-black px-6 rounded-lg font-black uppercase text-[10px] shadow-lg shadow-amber-400/10 hover:scale-[1.02] transition-all">Settle</button>
         </div>
       </div>
       <div className="space-y-4">
         {matches.filter((m: any) => !m.settled).map((m: any) => (
-          <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center">
-            <span className="text-[10px] font-black uppercase tracking-tight">{m.home_team} vs {m.away_team}</span>
-            <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-black uppercase text-[9px] hover:scale-[1.02] transition-all italic">Settle Match</button>
+          <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-[10px] font-black uppercase tracking-tight">{m.home_team} vs {m.away_team}</span>
+              <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-black uppercase text-[9px] hover:scale-[1.02] transition-all italic">Settle Match</button>
+            </div>
+            <div className="flex gap-2">
+              <input type="number" placeholder="H" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-center font-bold text-white outline-none focus:border-emerald-400" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
+              <input type="number" placeholder="A" className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-center font-bold text-white outline-none focus:border-emerald-400" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
+              {m.phase > 1 && (
+                <select className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-[9px] font-bold text-white outline-none focus:border-emerald-400" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
+                  <option value="">PW?</option>
+                  <option value="home">{m.home_team}</option>
+                  <option value="away">{m.away_team}</option>
+                </select>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -468,14 +509,14 @@ function AuthScreen() {
     <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
       <div className="w-full max-w-sm text-center">
         <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-        <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic">World Cup <span className="text-emerald-400">2026</span></h1>
+        <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic italic">World Cup <span className="text-emerald-400">2026</span></h1>
         <form onSubmit={handle} className="mt-8 space-y-3">
           <input type="email" placeholder="Email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold" onChange={(e) => setForm({...form, e: e.target.value})} />
           <input type="password" placeholder="Password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold" onChange={(e) => setForm({...form, p: e.target.value})} />
           <button type="submit" className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 hover:scale-[1.02] transition-all italic">{mode === 'login' ? 'Sign In' : 'Create Account'}</button>
         </form>
-        {err && <p className="text-rose-400 text-[10px] font-bold mt-4 uppercase italic">{err}</p>}
-        <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="mt-6 text-[10px] font-black uppercase text-slate-500 tracking-widest underline decoration-white/10 italic">{mode === 'login' ? 'Need an account? Sign Up' : 'Already have one? Sign In'}</button>
+        {err && <p className="text-rose-400 text-[10px] font-bold mt-4 uppercase italic tracking-widest animate-pulse">{err}</p>}
+        <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="mt-6 text-[10px] font-black uppercase text-slate-500 tracking-widest underline decoration-white/10 italic hover:text-white transition-all">{mode === 'login' ? 'Need an account? Sign Up' : 'Already have one? Sign In'}</button>
       </div>
     </div>
   );
@@ -491,9 +532,9 @@ function UsernameSetup({ userId, onComplete }: any) {
   return (
     <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
       <div className="text-center w-full max-w-sm">
-        <h2 className="text-2xl font-black text-white mb-6 uppercase italic tracking-widest underline decoration-emerald-500">Choose Player Name</h2>
+        <h2 className="text-2xl font-black text-white mb-6 uppercase italic tracking-widest underline decoration-emerald-500 italic">Choose Player Name</h2>
         <input type="text" placeholder="e.g. Zlatan" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center focus:border-emerald-400 outline-none font-bold italic" />
-        <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase mt-6 tracking-widest shadow-lg shadow-emerald-500/10 italic">Start Tournament</button>
+        <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase mt-6 tracking-widest shadow-lg shadow-emerald-500/10 hover:scale-[1.02] transition-all italic">Start Tournament</button>
       </div>
     </div>
   );
