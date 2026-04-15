@@ -531,7 +531,7 @@ function AdminPanel({ matches }: any) {
   const settleMatch = async (m: any) => {
     const s = scores[m.id];
     if (!s || s.h === "" || s.a === "") return alert("Enter scores!");
-    if (m.phase > 1 && s.h === s.a && !s.pw && m.sub_phase !== 'r32') {
+    if (m.phase > 1 && s.h === s.a && !s.pw) {
       return alert("Select a penalty winner for the tie!");
     }
 
@@ -542,12 +542,17 @@ function AdminPanel({ matches }: any) {
       let pts = 0;
       const actH = parseInt(s.h);
       const actA = parseInt(s.a);
-      
+
       const isExact = p.pred_home === actH && p.pred_away === actA;
       let isOutcome = false;
 
-      if (m.sub_phase === 'group' || m.sub_phase === 'r32') {
+      if (m.sub_phase === 'group') {
         isOutcome = Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA);
+      } else if (m.sub_phase === 'r32') {
+        // R32: who advances? (winner of match, or penalty winner if drawn)
+        const homeAdvances = actH > actA || (actH === actA && s.pw === 'home');
+        const userPickedHome = p.pred_home > p.pred_away;
+        isOutcome = homeAdvances === userPickedHome;
       } else {
         if (actH > actA) {
           isOutcome = p.pred_home > p.pred_away;
@@ -581,7 +586,7 @@ function AdminPanel({ matches }: any) {
               <div className="flex gap-2">
                 <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
                 <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
-                {m.phase > 1 && m.sub_phase !== 'r32' && (
+                {m.phase > 1 && (
                   <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
                     <option value="">PW?</option>
                     <option value="home">Home</option>
@@ -713,15 +718,9 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
       
-      {/* LEFT SIDEBAR: Instructions */}
-      <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
-        <h3 className="text-emerald-400 font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-xs"><Info className="w-4 h-4"/> How to Play</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed mb-4">For Group Stage and Round of 32, predict the 1X2 outcome. For later rounds, enter the exact scoreline. If you think a knockout match will go to penalties, predict a draw score and then choose the advancing team.</p>
-        <p className="text-[11px] text-slate-400 leading-relaxed mb-6">Auto-save is enabled. Look for the <CheckCircle className="inline w-3 h-3 text-emerald-400 mx-1"/> to ensure your prediction is logged securely.</p>
-        <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl">
-          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Goal className="w-3 h-3"/> Scoring Tip</p>
-          <p className="text-[10px] text-slate-400 leading-relaxed">Check the <strong className="text-white">Rules</strong> tab to see how points increase as the tournament progresses!</p>
-        </div>
+      {/* LEFT SIDEBAR: Instructions (per tab) */}
+      <div className="hidden lg:block sticky top-[100px]">
+        <HowToPlaySidebar tab={tab} />
       </div>
 
       {/* CENTER: Main Matches Content */}
@@ -758,6 +757,51 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   );
 }
 
+function HowToPlaySidebar({ tab }: { tab: number }) {
+  const content: Record<number, { howTo: React.ReactNode; tip: React.ReactNode }> = {
+    1: {
+      howTo: <>Keep it simple for the group stages. Just predict the 90-minute outcome: Home Win <strong className="text-white">(1)</strong>, Draw <strong className="text-white">(X)</strong>, or Away Win <strong className="text-white">(2)</strong>. Look for the green checkmark to ensure your auto-save was successful.</>,
+      tip: <>Slow and steady. You get <strong className="text-white">1 point</strong> for every correct outcome.</>
+    },
+    2: {
+      howTo: <>The knockouts begin! Forget about the exact scoreline — just predict which team will <strong className="text-white">advance</strong> to the next round, regardless of whether they win in regular time, extra time, or on penalties. Choose the Home team or the Away team.</>,
+      tip: <>The stakes are higher now. You get <strong className="text-white">2 points</strong> for picking the correct advancing team.</>
+    },
+    3: {
+      howTo: <>Time to get specific. Enter your predicted <strong className="text-white">exact scoreline</strong>. If you think the match will go to penalties, predict a draw score and then choose the advancing team.</>,
+      tip: <>You get <strong className="text-white">3 points</strong> for the correct outcome, but if you nail the exact scoreline, you get a massive <strong className="text-white">5 points</strong>!</>
+    },
+    4: {
+      howTo: <>The pressure is on! Enter your predicted <strong className="text-white">exact scoreline</strong>. If you think the match will go to penalties, predict a draw score and then choose the advancing team.</>,
+      tip: <>You get <strong className="text-white">4 points</strong> for the correct outcome. Predict the exact scoreline perfectly to score <strong className="text-white">6 points</strong> instead!</>
+    },
+    5: {
+      howTo: <>Ultimate bragging rights are on the line. Enter your predicted <strong className="text-white">exact scoreline</strong>. If you think the match will go to penalties, predict a draw score and then choose the advancing team.</>,
+      tip: <>You get <strong className="text-white">5 points</strong> for the correct outcome. Nail the exact scoreline for the maximum <strong className="text-white">7 points</strong>!</>
+    },
+    6: {
+      howTo: <>The dust has settled. This tab shows all the completed matches, their official final scores, and who won on penalties.</>,
+      tip: <>Matches automatically move here once they are settled. Check the <strong className="text-white">Leaderboard</strong> tab to see how these results impacted your ranking!</>
+    }
+  };
+
+  const c = content[tab] || content[1];
+
+  return (
+    <div className="bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
+      <h3 className="text-emerald-400 font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-xs"><Info className="w-4 h-4"/> How to Play</h3>
+      <p className="text-[11px] text-slate-400 leading-relaxed mb-4">{c.howTo}</p>
+      {tab !== 6 && (
+        <p className="text-[11px] text-slate-400 leading-relaxed mb-6">Auto-save is enabled. Look for the <CheckCircle className="inline w-3 h-3 text-emerald-400 mx-1"/> to ensure your prediction is logged securely.</p>
+      )}
+      <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl">
+        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Goal className="w-3 h-3"/> Scoring Tip</p>
+        <p className="text-[10px] text-slate-400 leading-relaxed">{c.tip}</p>
+      </div>
+    </div>
+  );
+}
+
 function PhaseTab({ id, label, active, onClick }: any) {
   return (
     <button onClick={() => onClick(id)} className={`whitespace-nowrap pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${active ? "border-b-2 border-emerald-400 text-white" : "text-slate-600"}`}>{label}</button>
@@ -785,14 +829,24 @@ function MatchCard({ match, userId, locked, isPending }: any) {
     return () => clearTimeout(timer);
   }, [pred, initialLoad, locked, match.id, userId]);
 
-  const is1X2 = match.sub_phase === 'group' || match.sub_phase === 'r32';
-  const active1X2 = (pred.h !== "" && pred.a !== "") 
-    ? (parseInt(pred.h) > parseInt(pred.a) ? '1' : parseInt(pred.h) < parseInt(pred.a) ? '2' : 'X') 
+  const isGroup = match.sub_phase === 'group';
+  const isR32 = match.sub_phase === 'r32';
+  const isExactScore = !isGroup && !isR32;
+
+  const active1X2 = (pred.h !== "" && pred.a !== "")
+    ? (parseInt(pred.h) > parseInt(pred.a) ? '1' : parseInt(pred.h) < parseInt(pred.a) ? '2' : 'X')
+    : null;
+
+  // R32: pred_home=1/pred_away=0 means home advances; 0/1 means away advances
+  const r32Pick = isR32 && pred.h !== "" && pred.a !== ""
+    ? (parseInt(pred.h) > parseInt(pred.a) ? 'home' : 'away')
     : null;
 
   const isDraw = pred.h !== "" && pred.a !== "" && pred.h === pred.a;
-  const needsPw = match.phase > 1 && isDraw && !is1X2;
-  const isComplete = pred.h !== "" && pred.a !== "" && (!needsPw || pred.pw !== "");
+  const needsPw = isExactScore && match.phase > 1 && isDraw;
+  const isComplete = isR32
+    ? r32Pick !== null
+    : (pred.h !== "" && pred.a !== "" && (!needsPw || pred.pw !== ""));
   const hasStartedTyping = pred.h !== "" || pred.a !== "";
 
   return (
@@ -820,11 +874,16 @@ function MatchCard({ match, userId, locked, isPending }: any) {
         </div>
         
         <div className="flex items-center justify-center gap-2">
-          {is1X2 ? (
+          {isGroup ? (
              <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-14">
                <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === '1' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>1</button>
                <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '0', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === 'X' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>X</button>
                <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === '2' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>2</button>
+             </div>
+          ) : isR32 ? (
+             <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-14">
+               <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`px-3 h-full rounded-lg text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${r32Pick === 'home' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>{getTeamLabel(match.home_team)} ▶</button>
+               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`px-3 h-full rounded-lg text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${r32Pick === 'away' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>◀ {getTeamLabel(match.away_team)}</button>
              </div>
           ) : (
              <>
@@ -988,35 +1047,125 @@ function Leaderboard() {
 
 function RulesPage() {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-10 max-w-5xl mx-auto shadow-xl">
-      <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest shadow-emerald-500/10 leading-none">Scoring Engine</h3>
-      <ul className="grid grid-cols-1 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
-          <span className="text-white block mb-1 md:mb-0">Group Stage</span> 
-          <span className="text-emerald-400">1pt (1X2 Outcome)</span>
-        </li>
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
-          <span className="text-white block mb-1 md:mb-0">Round of 32</span> 
-          <span className="text-emerald-400">2pt (1X2 Outcome)</span>
-        </li>
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
-          <span className="text-white block mb-1 md:mb-0">Round of 16</span> 
-          <span className="text-emerald-400">3pt (Outcome) / 5pt (Perfect Score)</span>
-        </li>
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
-          <span className="text-white block mb-1 md:mb-0">Quarter & Semi Finals</span> 
-          <span className="text-emerald-400">4pt (Outcome) / 6pt (Perfect Score)</span>
-        </li>
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
-          <span className="text-white block mb-1 md:mb-0">Gold & Bronze Finals</span> 
-          <span className="text-emerald-400">5pt (Outcome) / 7pt (Perfect Score)</span>
-        </li>
-      </ul>
-      <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-2xl">
-        <p className="text-[11px] font-bold text-slate-400 leading-relaxed">
-          * <strong className="text-white">Outcome</strong> means correctly picking the winner of the match, or predicting a draw in the Group/R32 stages. In the later knockout rounds, if you think the match will go to penalties, predict a draw score and then choose the penalty winner to get the Outcome points.<br/><br/>
-          * <strong className="text-white">Perfect Score</strong> means correctly guessing the final scoreline. Perfect Score points supersede Outcome points (e.g., getting a Perfect Score in the Quarter Finals grants you a total of 6 points, not 10).
-        </p>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Lock It In */}
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
+        <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Clock className="w-5 h-5"/> Lock It In — Deadlines & Auto-Save</h3>
+        <ul className="space-y-3 text-[11px] text-slate-400 leading-relaxed">
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <strong className="text-white">No "Submit" Button, Just Vibes:</strong> We use auto-save. Once you stop typing or click a button, your prediction is logged securely. Just look for the glorious green checkmark <CheckCircle className="inline w-3 h-3 text-emerald-400 mx-1"/> to confirm.
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <strong className="text-white">Snooze You Lose:</strong> Forget to enter a prediction before the timer hits zero? Congratulations, you get a big fat <strong className="text-rose-400">0 points</strong> for that match. No excuses, no VAR reviews.
+          </li>
+        </ul>
+      </div>
+
+      {/* Scoring Ladder */}
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
+        <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Target className="w-5 h-5"/> The Scoring Ladder</h3>
+        <p className="text-[11px] text-slate-400 mb-6 italic">Points get bigger as the tournament gets harder.</p>
+        <ul className="grid grid-cols-1 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+              <span className="text-white block mb-1 md:mb-0">Group Stage — Pick the 90-min outcome (1X2)</span>
+              <span className="text-emerald-400">Correct Outcome = 1 pt</span>
+            </div>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+              <span className="text-white block mb-1 md:mb-0">Round of 32 — Pick the advancing team</span>
+              <span className="text-emerald-400">Correct Advancing Team = 2 pts</span>
+            </div>
+            <p className="text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">No draws allowed here — penalties count!</p>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+              <span className="text-white block mb-1 md:mb-0">Round of 16 — Exact scoreline at 120 min</span>
+              <span className="text-emerald-400">3 pts Outcome / 5 pts Perfect</span>
+            </div>
+            <p className="text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: predicting a draw? You must pick the penalty winner to get Outcome points.</p>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+              <span className="text-white block mb-1 md:mb-0">Quarter & Semi Finals — Same rules, higher stakes</span>
+              <span className="text-emerald-400">4 pts Outcome / 6 pts Perfect</span>
+            </div>
+            <p className="text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: pick the penalty winner if you predict a draw score.</p>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+              <span className="text-white block mb-1 md:mb-0">Gold & Bronze Finals — The big one</span>
+              <span className="text-emerald-400">5 pts Outcome / 7 pts Perfect</span>
+            </div>
+            <p className="text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: pick the penalty winner if you predict a draw score.</p>
+          </li>
+        </ul>
+        <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-2xl mt-6">
+          <p className="text-[11px] font-bold text-slate-400 leading-relaxed">
+            * <strong className="text-white">Outcome</strong> means correctly picking the winner of the match (or predicting a draw in the Group stage). In the knockout rounds from R16 onwards, if you think the match will go to penalties, predict a draw score and then choose the penalty winner to get Outcome points.<br/><br/>
+            * <strong className="text-white">Perfect Score</strong> means correctly guessing the final scoreline. Perfect Score points supersede Outcome points (e.g., a Perfect Score in the Quarter Finals grants you 6 points total, not 10).
+          </p>
+        </div>
+      </div>
+
+      {/* Tournament Deadlines */}
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
+        <h3 className="text-amber-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><AlertCircle className="w-5 h-5"/> Tournament Deadlines</h3>
+        <ul className="space-y-3 text-[11px] text-slate-400">
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Bonus & Group Stage</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">June 11, 2026 · 21:00</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Round of 32</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">June 28, 2026 · 18:00</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Round of 16</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 4, 2026 · 18:00</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Quarter-Finals</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 9, 2026 · 21:00</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Semi-Finals</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 14, 2026 · 21:00</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">The Finals</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 18, 2026 · 21:00</span>
+          </li>
+        </ul>
+      </div>
+
+      {/* Bonus Predictions */}
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
+        <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Sparkles className="w-5 h-5"/> Bonus Predictions <span className="text-[10px] text-slate-500 not-italic">(Locks June 11)</span></h3>
+        <p className="text-[11px] text-slate-400 mb-6 italic">Nail these pre-tournament predictions for a massive point boost.</p>
+        <ul className="grid grid-cols-1 gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="text-white">🥾 Golden Boot — Most goals</span>
+            <span className="text-emerald-400">5 pts</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="text-white">🎯 Assist King — Most assists</span>
+            <span className="text-emerald-400">5 pts</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="text-white">🟨 Card Magnets — Most total cards (team)</span>
+            <span className="text-emerald-400">5 pts</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="text-white">⭐ Tournament MVP — Best player</span>
+            <span className="text-emerald-400">5 pts</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="text-white">⚽ Goal Rush — Total tournament goals</span>
+            <span className="text-emerald-400">Closest = 5 pts / Exact = 10 pts</span>
+          </li>
+        </ul>
       </div>
     </div>
   );
