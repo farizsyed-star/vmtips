@@ -8,7 +8,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", proces
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
 const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
-// Extensive Flag Mapping
+// Extensive Flag Mapping and Placeholder Handler
 const getFlag = (team: string) => {
   if (!team || team.toUpperCase().includes("WINNER") || team.toUpperCase().includes("RUNNER") || team.toUpperCase().includes("TBA")) {
     return null; // Return null to show a placeholder icon instead
@@ -67,7 +67,7 @@ function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | n
       <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
       {isPending ? (
         <span className="text-slate-500 font-black uppercase text-xs italic tracking-widest flex items-center gap-2">
-          <Lock className="w-3 h-3" /> Awaiting Previous Stage
+          <Lock className="w-3 h-3" /> Awaiting Bracket Decisions
         </span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm italic tracking-widest flex items-center gap-2">
@@ -94,6 +94,7 @@ function TimeBlock({ unit, val }: any) {
   );
 }
 
+// --- MAIN APP COMPONENT ---
 export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -173,7 +174,7 @@ function NavBtn({ active, onClick, label }: any) {
   );
 }
 
-// --- MATCH LIST WITH BRACKET VIEW ---
+// --- MATCH LIST WITH BRACKET VIEW AND TBA HANDLING ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   
@@ -193,16 +194,30 @@ function MatchList({ matches, tab, setTab, userId }: any) {
     lockTime = TOURNAMENT_START;
     matchesLocked = now > TOURNAMENT_START;
   } else if (tab === 2) {
-    if (!isP1Finished) { isPending = true; matchesLocked = true; } 
-    else { lockTime = firstMatchP2 ? new Date(firstMatchP2.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
+    if (!isP1Finished) {
+      isPending = true;
+      matchesLocked = true;
+    } else {
+      lockTime = firstMatchP2 ? new Date(firstMatchP2.kickoff_time) : null;
+      matchesLocked = lockTime ? now > lockTime : true;
+    }
   } else if (tab === 3) {
-    if (!isP2Finished) { isPending = true; matchesLocked = true; } 
-    else { lockTime = firstMatchP3 ? new Date(firstMatchP3.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; }
+    if (!isP2Finished) {
+      isPending = true;
+      matchesLocked = true;
+    } else {
+      lockTime = firstMatchP3 ? new Date(firstMatchP3.kickoff_time) : null;
+      matchesLocked = lockTime ? now > lockTime : true;
+    }
   }
 
   return (
     <>
-      <CountdownTimer targetDate={lockTime} label={`Locking ${tab === 1 ? "Group Stages" : tab === 2 ? "Knockout 1/16 - 1/4" : "Semis & Finals"} in`} isPending={isPending} />
+      <CountdownTimer 
+        targetDate={lockTime} 
+        label={`Locking ${tab === 1 ? "Group Stages" : tab === 2 ? "Knockout 1/16 - 1/4" : "Semis & Finals"} in`} 
+        isPending={isPending}
+      />
       
       <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
         <PhaseTab id={1} label="Group Stages" active={tab === 1} onClick={setTab} />
@@ -288,8 +303,8 @@ function MatchCard({ match, userId, locked, isPending }: any) {
         <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
           <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner Bonus (+1pt)</p>
           <div className="flex gap-2 bg-black/40 p-1 rounded-xl">
-            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black" : "text-slate-500"}`}>{match.home_team}</button>
-            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black" : "text-slate-500"}`}>{match.away_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
           </div>
         </div>
       )}
