@@ -169,10 +169,10 @@ export default function WorldCupApp() {
       <div className="sticky top-0 z-50 bg-[#07090d]/95 backdrop-blur-xl border-b border-white/5">
         <header className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Trophy className="text-emerald-500 w-6 h-6" />
-            <h1 className="font-black text-xl text-white uppercase italic tracking-tighter leading-none">
+            <Trophy className="text-emerald-500 w-8 h-8" />
+            <h1 className="font-black text-2xl md:text-3xl text-white uppercase italic tracking-tighter leading-none">
               World Cup '26<br/>
-              <span className="text-emerald-400 text-[10px] tracking-widest block mt-0.5">Couch Potato Edition</span>
+              <span className="text-emerald-400 text-xs md:text-sm tracking-widest block mt-1">Couch Potato Edition</span>
             </h1>
           </div>
           <div className="flex items-center gap-4">
@@ -188,7 +188,7 @@ export default function WorldCupApp() {
         <nav className="max-w-[1400px] mx-auto px-4 pb-4 flex gap-1 md:gap-2 md:justify-center overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => bonusCompleted && setView("matches")} 
-            className={`flex-1 md:flex-none md:w-28 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
+            className={`flex-1 md:flex-none md:w-32 py-3 text-[11px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
           >
             {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
           </button>
@@ -616,7 +616,7 @@ function AdminPanel({ matches }: any) {
 
 function NavBtn({ active, onClick, label }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 md:flex-none md:w-28 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+    <button onClick={onClick} className={`flex-1 md:flex-none md:w-32 py-3 text-[11px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
       {label}
     </button>
   );
@@ -725,8 +725,8 @@ function MatchList({ matches, tab, setTab, userId }: any) {
 
       {/* CENTER: Main Matches Content */}
       <div className="col-span-1 lg:col-span-4">
-        <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide w-full justify-between">
+        <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide">
             <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
             <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
             <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
@@ -804,7 +804,7 @@ function HowToPlaySidebar({ tab }: { tab: number }) {
 
 function PhaseTab({ id, label, active, onClick }: any) {
   return (
-    <button onClick={() => onClick(id)} className={`whitespace-nowrap pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${active ? "border-b-2 border-emerald-400 text-white" : "text-slate-600"}`}>{label}</button>
+    <button onClick={() => onClick(id)} className={`flex-1 py-2 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${active ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>{label}</button>
   );
 }
 
