@@ -65,32 +65,53 @@ export default function WorldCupApp() {
   const [matches, setMatches] = useState<any[]>([]);
   const [tab, setTab] = useState(1);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser(session.user);
-        fetchProfile(session.user.id);
-        checkBonusStatus(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-  }, []);
-
   const fetchProfile = async (id: string) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", id).single();
     setProfile(data);
   };
 
   const checkBonusStatus = async (id: string) => {
-    const { data } = await supabase.from("bonus_predictions").select("user_id").eq("user_id", id).single();
+    // using maybeSingle prevents crashing if 0 rows are found
+    const { data } = await supabase.from("bonus_predictions").select("user_id").eq("user_id", id).maybeSingle();
     if (data) {
       setBonusCompleted(true);
       setView("matches");
     } else {
+      setBonusCompleted(false);
       setView("bonus");
     }
   };
+
+  useEffect(() => {
+    // 1. Initial Session Check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.id);
+        checkBonusStatus(session.user.id);
+      } else {
+        setUser(null);
+        setLoading(false);
+        setView("matches"); // Breaks the loading state trap
+      }
+    });
+
+    // 2. Real-time Auth Listener (Fixes the Logout bug)
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.id);
+        checkBonusStatus(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setView("matches");
+      }
+      setLoading(false);
+    });
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
 
   // Auto-route matches tab based on current tournament date
   useEffect(() => {
@@ -108,7 +129,7 @@ export default function WorldCupApp() {
 
         const allSettled = fetchedMatches.every(m => m.settled);
 
-        if (allSettled) setTab(6); // If everything is done, default to Results
+        if (allSettled) setTab(6);
         else if (now > semiEnd) setTab(5);
         else if (now > r16End) setTab(4);
         else if (now > r32End) setTab(3);
@@ -118,6 +139,7 @@ export default function WorldCupApp() {
     });
   }, []);
 
+  // Failsafe rendering sequence
   if (loading || view === "loading") return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase italic tracking-widest animate-pulse">Loading World Cup...</div>;
   if (!user) return <AuthScreen />;
   if (!profile?.username) return <UsernameSetup userId={user.id} onComplete={() => { setShowWelcome(true); fetchProfile(user.id); }} />;
@@ -139,7 +161,7 @@ export default function WorldCupApp() {
               <p className="text-amber-400 font-black text-xl leading-none">{profile?.total_points || 0}</p>
             </div>
             {user?.email === ADMIN_EMAIL && <Shield onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
-            <LogOut onClick={() => supabase.auth.signOut()} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
+            <LogOut onClick={async () => { await supabase.auth.signOut(); setView("loading"); }} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
           </div>
         </header>
 
@@ -272,7 +294,7 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
-// Compact Bracket Match Box
+// Compact Bracket Match Box with Date/Time INSIDE
 const BracketMatch = ({ match }: { match?: any }) => {
   const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
   const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : "--:--";
@@ -289,20 +311,18 @@ const BracketMatch = ({ match }: { match?: any }) => {
 
   return (
     <div className={`relative flex flex-col justify-between w-[130px] h-[56px] bg-[#1a1d24] border ${match?.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-lg hover:border-emerald-500/50 transition-colors shadow-lg px-2 py-1 z-10`}>
-      <div className="absolute bottom-full left-0 w-full flex justify-between px-0.5 mb-0.5">
+      <div className="w-full flex justify-between items-center mb-0.5">
         <span className="text-[7.5px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
         <span className="text-[7.5px] font-black text-emerald-400/80 tracking-widest uppercase">{timeStr}</span>
       </div>
-      
-      <div className="w-full flex justify-between items-center mb-0.5">
+      <div className="w-full flex justify-between items-center px-1.5 py-0.5 border-b border-white/5 h-1/2">
          <div className="flex items-center gap-1.5">
            {getFlag(match?.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
            <span className={`text-[9px] font-black uppercase tracking-widest ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.home_team)}</span>
          </div>
          <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.home_score : "-"}</span>
       </div>
-      
-      <div className="w-full flex justify-between items-center">
+      <div className="w-full flex justify-between items-center px-1.5 py-0.5 h-1/2">
          <div className="flex items-center gap-1.5">
            {getFlag(match?.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
            <span className={`text-[9px] font-black uppercase tracking-widest ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.away_team)}</span>
@@ -425,6 +445,7 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
         <div className="flex w-[130px] flex-col">
           {["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"].map(id => <MatchWrapper key={id} height={H}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
         </div>
+
       </div>
     </div>
   );
@@ -585,7 +606,7 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   let matchesLocked = false;
   let filtered = [];
 
-  if (tab === 6) { // Results Tab
+  if (tab === 6) {
     lockTime = null; 
     matchesLocked = true; 
     filtered = matches.filter((m: any) => m.settled).sort((a,b) => new Date(b.kickoff_time).getTime() - new Date(a.kickoff_time).getTime()); 
@@ -657,12 +678,10 @@ function PhaseTab({ id, label, active, onClick }: any) {
   );
 }
 
-// MATCH CARD WITH AUTO-SAVE & VISUAL INDICATORS
 function MatchCard({ match, userId, locked, isPending }: any) {
   const [pred, setPred] = useState({ h: "", a: "", pw: "" });
   const [initialLoad, setInitialLoad] = useState(true);
   
-  // Load prediction
   useEffect(() => {
     supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => {
       if (data) setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" });
@@ -670,18 +689,16 @@ function MatchCard({ match, userId, locked, isPending }: any) {
     });
   }, [match.id, userId]);
 
-  // Debounced Auto-Save
   useEffect(() => {
     if (initialLoad || locked || pred.h === "" || pred.a === "") return;
     const timer = setTimeout(async () => {
       await supabase.from("predictions").upsert({ 
         user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw 
       }, { onConflict: 'user_id,match_id' });
-    }, 500); // Wait 500ms after user stops typing
+    }, 500); 
     return () => clearTimeout(timer);
   }, [pred, initialLoad, locked, match.id, userId]);
 
-  // Logic for visual indicators
   const isDraw = pred.h !== "" && pred.a !== "" && pred.h === pred.a;
   const needsPw = match.phase > 1 && isDraw;
   const isComplete = pred.h !== "" && pred.a !== "" && (!needsPw || pred.pw !== "");
@@ -690,7 +707,7 @@ function MatchCard({ match, userId, locked, isPending }: any) {
   return (
     <div className={`bg-white/5 border rounded-2xl p-6 transition-all relative ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
       {match.settled && (
-        <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[9px] font-black px-3 py-1 rounded-bl-xl rounded-tr-2xl uppercase tracking-widest shadow-sm">
+        <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[9px] font-black px-3 py-1 rounded-bl-xl rounded-tr-2xl uppercase tracking-widest shadow-sm z-10">
           FT: {match.home_score} - {match.away_score}
           {match.penalty_winner_actual ? ` (${match.penalty_winner_actual === 'home' ? getTeamLabel(match.home_team) : getTeamLabel(match.away_team)} pens)` : ''}
         </div>
