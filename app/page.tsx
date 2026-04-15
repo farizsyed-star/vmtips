@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, Settings, LogOut, CheckCircle, BookOpen, Clock, Globe, Timer } from "lucide-react";
+import { Trophy, Shield, Settings, LogOut, CheckCircle, BookOpen, Clock, Globe, AlertCircle, Lock } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
@@ -44,10 +44,11 @@ const COUNTRIES = [
 ].sort();
 
 // --- COUNTDOWN COMPONENT ---
-function CountdownTimer({ targetDate, label }: { targetDate: Date, label: string }) {
+function CountdownTimer({ targetDate, label, isPending }: { targetDate: Date | null, label: string, isPending?: boolean }) {
   const [timeLeft, setTimeLeft] = useState<any>(null);
 
   useEffect(() => {
+    if (!targetDate || isPending) return;
     const timer = setInterval(() => {
       const now = new Date().getTime();
       const distance = targetDate.getTime() - now;
@@ -63,24 +64,28 @@ function CountdownTimer({ targetDate, label }: { targetDate: Date, label: string
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [targetDate]);
-
-  if (!timeLeft) return null;
+  }, [targetDate, isPending]);
 
   return (
     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6 shadow-lg shadow-emerald-500/5">
       <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
-      {timeLeft === "LOCKED" ? (
+      {isPending ? (
+        <span className="text-slate-500 font-black uppercase text-xs italic tracking-widest flex items-center gap-2">
+          <Lock className="w-3 h-3" /> Waiting for previous stage...
+        </span>
+      ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm italic tracking-widest flex items-center gap-2">
           <AlertCircle className="w-4 h-4" /> Locked
         </span>
-      ) : (
+      ) : timeLeft ? (
         <div className="flex gap-4 text-white font-black italic">
           <TimeBlock unit="Days" val={timeLeft.d} />
           <TimeBlock unit="Hours" val={timeLeft.h} />
           <TimeBlock unit="Mins" val={timeLeft.m} />
           <TimeBlock unit="Secs" val={timeLeft.s} />
         </div>
+      ) : (
+        <span className="text-slate-600 font-black animate-pulse">...</span>
       )}
     </div>
   );
@@ -175,27 +180,70 @@ function NavBtn({ active, onClick, label }: any) {
   );
 }
 
+// --- MATCH LIST & SEQUENTIAL LOCKING ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   
-  // Find the first match of the current tab to use as the lock time
-  const firstMatchOfTab = matches.find((m: any) => m.phase === tab);
-  const lockTime = tab === 1 ? TOURNAMENT_START : (firstMatchOfTab ? new Date(firstMatchOfTab.kickoff_time) : TOURNAMENT_START);
-  const isLocked = now > lockTime;
+  // 1. Identify critical times
+  const lastMatchP1 = matches.filter((m: any) => m.phase === 1).slice(-1)[0];
+  const lastMatchP2 = matches.filter((m: any) => m.phase === 2).slice(-1)[0];
+  const firstMatchP2 = matches.find((m: any) => m.phase === 2);
+  const firstMatchP3 = matches.find((m: any) => m.phase === 3);
+
+  const isP1Finished = lastMatchP1 ? now > new Date(lastMatchP1.kickoff_time) : false;
+  const isP2Finished = lastMatchP2 ? now > new Date(lastMatchP2.kickoff_time) : false;
+
+  // 2. Logic for the current tab
+  let lockTime: Date | null = null;
+  let isPending = false;
+  let matchesLocked = false;
+
+  if (tab === 1) {
+    lockTime = TOURNAMENT_START;
+    matchesLocked = now > TOURNAMENT_START;
+  } else if (tab === 2) {
+    if (!isP1Finished) {
+      isPending = true;
+      matchesLocked = true;
+    } else {
+      lockTime = firstMatchP2 ? new Date(firstMatchP2.kickoff_time) : null;
+      matchesLocked = lockTime ? now > lockTime : true;
+    }
+  } else if (tab === 3) {
+    if (!isP2Finished) {
+      isPending = true;
+      matchesLocked = true;
+    } else {
+      lockTime = firstMatchP3 ? new Date(firstMatchP3.kickoff_time) : null;
+      matchesLocked = lockTime ? now > lockTime : true;
+    }
+  }
 
   return (
     <>
-      <CountdownTimer targetDate={lockTime} label={`Locking ${tab === 1 ? "Group Stages" : tab === 2 ? "Knockout 1/16 - 1/4" : "Semis & Finals"} in`} />
+      <CountdownTimer 
+        targetDate={lockTime} 
+        label={`Locking ${tab === 1 ? "Group Stages" : tab === 2 ? "Knockout 1/16 - 1/4" : "Semis & Finals"} in`} 
+        isPending={isPending}
+      />
       
       <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2">
         <PhaseTab id={1} label="Group Stages" active={tab === 1} onClick={setTab} />
         <PhaseTab id={2} label="Knockout 1/16 - 1/4" active={tab === 2} onClick={setTab} />
         <PhaseTab id={3} label="Semis & Finals" active={tab === 3} onClick={setTab} />
       </div>
+
       <div className="grid gap-4">
-        {matches.filter((m: any) => m.phase === tab).map((m: any) => (
-          <MatchCard key={m.id} match={m} userId={userId} locked={isLocked} />
-        ))}
+        {isPending ? (
+          <div className="py-20 text-center flex flex-col items-center gap-4 bg-white/5 rounded-3xl border border-dashed border-white/10">
+            <Lock className="w-8 h-8 text-slate-700" />
+            <p className="text-slate-500 font-black uppercase text-[10px] tracking-widest italic">Matches for this stage will unlock once the previous stage is complete.</p>
+          </div>
+        ) : (
+          matches.filter((m: any) => m.phase === tab).map((m: any) => (
+            <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} />
+          ))
+        )}
       </div>
     </>
   );
@@ -411,7 +459,7 @@ function AdminPanel({ matches }: any) {
 
   return (
     <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
-      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline"><Shield className="w-5 h-5" /> Admin Settlement</h2>
+      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline tracking-tight"><Shield className="w-5 h-5" /> Admin Settlement</h2>
       <div className="mb-8 p-4 bg-black/40 rounded-xl border border-white/5">
         <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Final Tournament Total Goals</p>
         <div className="flex gap-2">
@@ -460,7 +508,7 @@ function RulesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <section className="bg-emerald-500/5 p-6 rounded-2xl border border-emerald-500/20">
           <h3 className="text-emerald-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Penalties Bonus</h3>
-          <p className="text-xs text-slate-400 leading-relaxed italic font-medium">In knockouts, if it's a draw after 120m, get <span className="text-white font-bold">+1 bonus point</span> for the correct Penalty Winner.</p>
+          <p className="text-xs text-slate-400 leading-relaxed italic font-medium">In knockouts, if it&apos;s a draw after 120m, get <span className="text-white font-bold">+1 bonus point</span> for the correct Penalty Winner.</p>
         </section>
         <section className="bg-amber-500/5 p-6 rounded-2xl border border-amber-500/20">
           <h3 className="text-amber-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Total Goals Bonus</h3>
