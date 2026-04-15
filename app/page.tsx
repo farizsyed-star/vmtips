@@ -8,20 +8,32 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", proces
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
 const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 
-// Helper for Flags
+// Extensive Flag Mapping for all 48+ potential teams
 const getFlag = (team: string) => {
+  if (!team || team.toUpperCase().includes("TBA")) return "https://flagcdn.com/w40/un.png";
+  const name = team.toLowerCase().trim();
   const map: any = {
-    "Mexico": "mx", "Canada": "ca", "USA": "us", "Argentina": "ar", "Brazil": "br", "France": "fr", 
-    "England": "gb-eng", "Spain": "es", "Germany": "de", "Portugal": "pt", "Netherlands": "nl", 
-    "Belgium": "be", "Italy": "it", "Sweden": "se", "Norway": "no", "Denmark": "dk", "Japan": "jp", 
-    "South Korea": "kr", "Morocco": "ma", "Senegal": "sn", "Croatia": "hr", "Uruguay": "uy", 
-    "Colombia": "co", "Switzerland": "ch", "TBA": "un"
+    "usa": "us", "mexico": "mx", "mexiko": "mx", "canada": "ca", "kanada": "ca",
+    "argentina": "ar", "brazil": "br", "brasilien": "br", "france": "fr", "frankrike": "fr",
+    "england": "gb-eng", "spain": "es", "spanien": "es", "germany": "de", "tyskland": "de",
+    "portugal": "pt", "netherlands": "nl", "nederländerna": "nl", "belgium": "be", "belgien": "be",
+    "italy": "it", "italien": "it", "croatia": "hr", "kroatien": "hr", "denmark": "dk", "danmark": "dk",
+    "norway": "no", "norge": "no", "sweden": "se", "sverige": "se", "poland": "pl", "polen": "pl",
+    "serbia": "rs", "serbien": "rs", "switzerland": "ch", "schweiz": "ch", "austria": "at", "österrike": "at",
+    "turkey": "tr", "turkiet": "tr", "ukraine": "ua", "ukraina": "ua", "scotland": "gb-sct", "skottland": "gb-sct",
+    "wales": "gb-wls", "hungary": "hu", "ungern": "hu", "greece": "gr", "grekland": "gr", "czech republic": "cz", "tjeckien": "cz",
+    "uruguay": "uy", "colombia": "co", "chile": "cl", "ecuador": "ec", "peru": "pe", "paraguay": "py", "venezuela": "ve",
+    "morocco": "ma", "marocko": "ma", "senegal": "sn", "nigeria": "ng", "egypt": "eg", "egypten": "eg",
+    "ghana": "gh", "cameroon": "cm", "kamerun": "cm", "algeria": "dz", "algeriet": "dz", "tunisia": "tn", "tunisien": "tn",
+    "ivory coast": "ci", "elfenbenskusten": "ci", "south africa": "za", "sydafrika": "za",
+    "japan": "jp", "south korea": "kr", "sydkorea": "kr", "australia": "au", "australien": "au",
+    "saudi arabia": "sa", "saudiarabien": "sa", "iran": "ir", "iraq": "iq", "irak": "iq", "qatar": "qa",
+    "costa rica": "cr", "panama": "pa", "jamaica": "jm"
   };
-  const code = map[team] || "un";
+  const code = map[name] || "un";
   return `https://flagcdn.com/w40/${code}.png`;
 };
 
-// Alphabetical Countries for Dropdown
 const COUNTRIES = [
   "Algeria", "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Cameroon", "Canada", "Chile", 
   "Colombia", "Costa Rica", "Croatia", "Czech Republic", "Denmark", "Ecuador", "Egypt", "England", 
@@ -63,7 +75,7 @@ export default function WorldCupApp() {
     supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => setMatches(data as any || []));
   }, [view]);
 
-  if (loading) return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-bold uppercase">Loading Tournament...</div>;
+  if (loading) return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase italic tracking-widest">Loading...</div>;
   if (!user) return <AuthScreen />;
   if (!profile?.username) return <UsernameSetup userId={user.id} onComplete={() => fetchProfile(user.id)} />;
 
@@ -72,14 +84,14 @@ export default function WorldCupApp() {
       <header className="border-b border-white/5 bg-black/40 backdrop-blur-md sticky top-0 z-50 px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Trophy className="text-emerald-500 w-5 h-5" />
-          <h1 className="font-bold text-xl text-white uppercase italic">World Cup <span className="text-emerald-400">2026</span></h1>
+          <h1 className="font-black text-xl text-white uppercase italic tracking-tighter">World Cup <span className="text-emerald-400">2026</span></h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-[8px] text-slate-500 uppercase font-black leading-none">Points</p>
+            <p className="text-[8px] text-slate-500 uppercase font-black leading-none tracking-widest">Points</p>
             <p className="text-amber-400 font-black text-xl leading-none">{profile?.total_points || 0}</p>
           </div>
-          {user?.email === ADMIN_EMAIL && <Settings onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
+          {user?.email === ADMIN_EMAIL && <Shield onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
           <LogOut onClick={() => supabase.auth.signOut()} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
         </div>
       </header>
@@ -104,7 +116,7 @@ export default function WorldCupApp() {
 
 function NavBtn({ active, onClick, label }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 min-w-[80px] py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>
+    <button onClick={onClick} className={`flex-1 min-w-[80px] py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
       {label}
     </button>
   );
@@ -129,6 +141,9 @@ function MatchList({ matches, tab, setTab, userId }: any) {
         {matches.filter((m: any) => m.phase === tab).map((m: any) => (
           <MatchCard key={m.id} match={m} userId={userId} locked={isRoundLocked(m.phase)} />
         ))}
+        {matches.filter((m: any) => m.phase === tab).length === 0 && (
+          <div className="text-center py-10 text-slate-600 text-[10px] font-black uppercase tracking-widest italic">No fixtures found in this category yet.</div>
+        )}
       </div>
     </>
   );
@@ -160,47 +175,52 @@ function MatchCard({ match, userId, locked }: any) {
   };
 
   return (
-    <div className={`bg-white/5 border rounded-2xl p-6 ${locked ? "border-white/5 opacity-80" : "border-white/10 hover:border-emerald-500/30"}`}>
+    <div className={`bg-white/5 border rounded-2xl p-6 transition-all ${locked ? "border-white/5 opacity-80" : "border-white/10 hover:border-emerald-500/30"}`}>
       <div className="flex justify-between items-center mb-4">
         <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
           {locked && <Clock className="w-3 h-3 text-rose-500" />}
-          {new Date(match.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          {new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
         </span>
         <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest">{match.channel}</span>
       </div>
       
       <div className="flex items-center justify-between gap-4">
-        <div className="flex-1 flex flex-col items-center gap-2">
-          <img src={getFlag(match.home_team)} className="w-8 h-5 object-cover rounded shadow-sm" alt="" />
-          <span className="font-black text-xs uppercase text-center truncate w-full">{match.home_team}</span>
+        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
+          <img src={getFlag(match.home_team)} className="w-10 h-6 object-cover rounded shadow-md" alt="" />
+          <span className="font-black text-xs uppercase text-center truncate w-full tracking-tight">{match.home_team}</span>
         </div>
         
         <div className="flex gap-2">
-          <input type="number" min="0" disabled={locked} value={pred.h} onBlur={save} onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none" placeholder="-" />
-          <input type="number" min="0" disabled={locked} value={pred.a} onBlur={save} onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none" placeholder="-" />
+          <input type="number" min="0" disabled={locked} value={pred.h} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+            onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} 
+            className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none disabled:text-slate-600" placeholder="-" 
+          />
+          <input type="number" min="0" disabled={locked} value={pred.a} onBlur={save} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+            onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} 
+            className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none disabled:text-slate-600" placeholder="-" 
+          />
         </div>
 
-        <div className="flex-1 flex flex-col items-center gap-2">
-          <img src={getFlag(match.away_team)} className="w-8 h-5 object-cover rounded shadow-sm" alt="" />
-          <span className="font-black text-xs uppercase text-center truncate w-full">{match.away_team}</span>
+        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
+          <img src={getFlag(match.away_team)} className="w-10 h-6 object-cover rounded shadow-md" alt="" />
+          <span className="font-black text-xs uppercase text-center truncate w-full tracking-tight">{match.away_team}</span>
         </div>
       </div>
 
       {pred.h !== "" && pred.h === pred.a && match.phase > 1 && !locked && (
         <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
-          <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Penalty Winner Bonus (+1pt)</p>
+          <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner Bonus (+1pt)</p>
           <div className="flex gap-2 bg-black/40 p-1 rounded-xl">
-            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${pred.pw === 'home' ? "bg-emerald-500 text-black" : "text-slate-500"}`}>{match.home_team}</button>
-            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase ${pred.pw === 'away' ? "bg-emerald-500 text-black" : "text-slate-500"}`}>{match.away_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'home'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
+            <button onClick={() => {setPred({...pred, pw: 'away'}); save();}} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
           </div>
         </div>
       )}
-      {saved && <div className="mt-2 text-center text-[9px] text-emerald-400 font-black uppercase italic tracking-tighter">Prediction Locked & Saved</div>}
+      {saved && <div className="mt-2 text-center text-[9px] text-emerald-400 font-black uppercase italic tracking-tighter">Prediction Saved</div>}
     </div>
   );
 }
 
-// --- BONUS PAGE ---
 function BonusPage({ userId }: any) {
   const locked = new Date() > TOURNAMENT_START;
   const [form, setForm] = useState({ scorer: "", assister: "", cards: "", mvp: "", goals: "" });
@@ -223,16 +243,16 @@ function BonusPage({ userId }: any) {
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8">
-      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline decoration-emerald-500">Tournament Bonus</h2>
+      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline decoration-emerald-500 tracking-tight italic">Tournament Bonus</h2>
       <div className="space-y-6">
         <BonusField label="Top Scorer" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={locked} />
         <BonusField label="Top Assister" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={locked} />
         
         <div>
-          <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1">Team with Most Cards</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Team with Most Cards</p>
           <select 
             disabled={locked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})}
-            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold appearance-none"
+            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold appearance-none cursor-pointer"
           >
             <option value="">Select Country</option>
             {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -242,8 +262,9 @@ function BonusPage({ userId }: any) {
         <BonusField label="Tournament MVP" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={locked} />
         <BonusField label="Total Goals Scored" value={form.goals} onChange={(v) => setForm({...form, goals: v.replace(/[^0-9]/g, "")})} disabled={locked} type="number" />
         
-        {!locked && <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest mt-4">Save Predictions</button>}
+        {!locked && <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest mt-4 shadow-lg shadow-emerald-500/10 hover:scale-[1.01] transition-all italic">Save Predictions</button>}
         {saved && <p className="text-center text-[10px] text-emerald-400 font-black italic mt-2 uppercase">Saved successfully!</p>}
+        {locked && <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-[10px] font-black uppercase text-center">Bonus predictions are locked</div>}
       </div>
     </div>
   );
@@ -252,16 +273,15 @@ function BonusPage({ userId }: any) {
 function BonusField({ label, value, onChange, disabled, type="text" }: any) {
   return (
     <div>
-      <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1">{label}</p>
+      <p className="text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">{label}</p>
       <input 
-        type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}
+        type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => type === 'number' && (e.key === '-' || e.key === 'e') && e.preventDefault()}
         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-400 outline-none font-bold"
       />
     </div>
   );
 }
 
-// --- LEADERBOARD & ADMIN SETTLE ---
 function Leaderboard() {
   const [list, setList] = useState([]);
   useEffect(() => {
@@ -276,10 +296,10 @@ function Leaderboard() {
       {list.map((p: any, i) => (
         <div key={p.id} className={`p-6 flex justify-between items-center ${i < 3 ? "bg-emerald-500/5" : ""}`}>
           <div className="flex items-center gap-4">
-            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black ${i === 0 ? "bg-amber-400 text-black" : "bg-white/10"}`}>{i + 1}</span>
+            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black ${i === 0 ? "bg-amber-400 text-black shadow-lg shadow-amber-400/20" : "bg-white/10"}`}>{i + 1}</span>
             <span className="font-black uppercase tracking-tighter text-lg">{p.username}</span>
           </div>
-          <span className="text-amber-400 font-black text-2xl">{p.total_points}</span>
+          <span className="text-amber-400 font-black text-2xl tracking-tighter italic">{p.total_points}</span>
         </div>
       ))}
     </div>
@@ -288,44 +308,34 @@ function Leaderboard() {
 
 function AdminPanel({ matches }: any) {
   const [totalGoalsActual, setTotalGoalsActual] = useState("");
-
   const settleTotalGoals = async () => {
     const actual = parseInt(totalGoalsActual);
     if (isNaN(actual)) return alert("Enter actual total goals first!");
-    
-    // 1. Fetch all bonus predictions
     const { data: preds } = await supabase.from("bonus_predictions").select("*");
     if (!preds) return;
-
-    // 2. Find the minimum difference (closest)
     let minDiff = Math.min(...preds.map(p => Math.abs(p.total_goals_guess - actual)));
-
-    // 3. Award points to ALL matching users
     for (const p of preds) {
       const diff = Math.abs(p.total_goals_guess - actual);
       const pts = diff === 0 ? 10 : (diff === minDiff ? 5 : 0);
       if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
     }
-    alert("Total Goals points settled for all users!");
+    alert("Total Goals points settled for winners!");
   };
-
   return (
     <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
-      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic"><Shield className="w-5 h-5" /> Admin Panel</h2>
-      
+      <h2 className="text-amber-400 font-black text-xl mb-6 flex items-center gap-2 uppercase italic underline"><Shield className="w-5 h-5" /> Admin Settlement</h2>
       <div className="mb-8 p-4 bg-black/40 rounded-xl border border-white/5">
-        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Settle Final Total Goals</p>
+        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Final Tournament Total Goals</p>
         <div className="flex gap-2">
-          <input type="number" value={totalGoalsActual} onChange={(e) => setTotalGoalsActual(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 font-bold" placeholder="Actual Total Goals" />
-          <button onClick={settleTotalGoals} className="bg-amber-400 text-black px-6 rounded-lg font-black uppercase text-[10px]">Settle</button>
+          <input type="number" value={totalGoalsActual} onChange={(e) => setTotalGoalsActual(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 font-bold" placeholder="Final Total" />
+          <button onClick={settleTotalGoals} className="bg-amber-400 text-black px-6 rounded-lg font-black uppercase text-[10px] shadow-lg shadow-amber-400/10 hover:scale-[1.02] transition-all">Settle</button>
         </div>
       </div>
-
       <div className="space-y-4">
         {matches.filter((m: any) => !m.settled).map((m: any) => (
           <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center">
-            <span className="text-[10px] font-black uppercase">{m.home_team} vs {m.away_team}</span>
-            <button className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-black uppercase text-[9px]">Settle Match</button>
+            <span className="text-[10px] font-black uppercase tracking-tight">{m.home_team} vs {m.away_team}</span>
+            <button className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-black uppercase text-[9px] hover:scale-[1.02] transition-all italic">Settle Match</button>
           </div>
         ))}
       </div>
@@ -337,24 +347,23 @@ function RulesPage() {
   return (
     <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-10">
       <section>
-        <h3 className="text-emerald-400 font-black uppercase italic mb-4 flex items-center gap-2"><Globe className="w-4 h-4" /> Scoring Engine</h3>
-        <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-bold uppercase tracking-widest text-slate-400">
-          <li className="bg-white/5 p-4 rounded-xl"><span className="text-white block mb-1">Groups</span> 1pt Outcome / 2pt Score</li>
-          <li className="bg-white/5 p-4 rounded-xl"><span className="text-white block mb-1">R16 & Quarters</span> 2pt Outcome / 3pt Score</li>
-          <li className="bg-white/5 p-4 rounded-xl"><span className="text-white block mb-1">Semifinals</span> 3pt Outcome / 4pt Score</li>
-          <li className="bg-white/5 p-4 rounded-xl"><span className="text-white block mb-1">Bronze Match</span> 4pt Outcome / 5pt Score</li>
-          <li className="bg-white/5 p-4 rounded-xl"><span className="text-white block mb-1">The Final</span> 5pt Outcome / 6pt Score</li>
+        <h3 className="text-emerald-400 font-black uppercase italic mb-4 flex items-center gap-2 underline tracking-widest italic"><Globe className="w-4 h-4" /> Scoring Engine</h3>
+        <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Group Stages</span> 1pt Outcome / 2pt Score</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">R16 & Quarters</span> 2pt Outcome / 3pt Score</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Semifinals</span> 3pt Outcome / 4pt Score</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Bronze Match</span> 4pt Outcome / 5pt Score</li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">The Final</span> 5pt Outcome / 6pt Score</li>
         </ul>
       </section>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <section className="bg-emerald-500/5 p-6 rounded-2xl border border-emerald-500/20">
-          <h3 className="text-emerald-400 font-black uppercase text-[10px] mb-3 tracking-widest">Penalties Bonus</h3>
-          <p className="text-xs text-slate-400 leading-relaxed italic font-medium">In knockouts, if it's a draw after 120m, get <span className="text-white">+1 bonus point</span> for the correct Penalty Winner.</p>
+          <h3 className="text-emerald-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Penalties Bonus</h3>
+          <p className="text-xs text-slate-400 leading-relaxed italic font-medium">In knockouts, if it&apos;s a draw after 120m, get <span className="text-white font-bold">+1 bonus point</span> for the correct Penalty Winner.</p>
         </section>
         <section className="bg-amber-500/5 p-6 rounded-2xl border border-amber-500/20">
-          <h3 className="text-amber-400 font-black uppercase text-[10px] mb-3 tracking-widest">Total Goals Bonus</h3>
-          <p className="text-xs text-slate-400 leading-relaxed italic font-medium"><span className="text-white">10 Points</span> for exactly right. <span className="text-white">5 Points</span> for the closest guess (shared among tied players).</p>
+          <h3 className="text-amber-400 font-black uppercase text-[10px] mb-3 tracking-widest italic underline">Total Goals Bonus</h3>
+          <p className="text-xs text-slate-400 leading-relaxed italic font-medium"><span className="text-white font-bold">10 Points</span> for exactly right. <span className="text-white font-bold">5 Points</span> for the closest guess (shared among winners).</p>
         </section>
       </div>
     </div>
@@ -376,12 +385,12 @@ function AuthScreen() {
         <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
         <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic">World Cup <span className="text-emerald-400">2026</span></h1>
         <form onSubmit={handle} className="mt-8 space-y-3">
-          <input type="email" placeholder="Email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400" onChange={(e) => setForm({...form, e: e.target.value})} />
-          <input type="password" placeholder="Password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400" onChange={(e) => setForm({...form, p: e.target.value})} />
-          <button type="submit" className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 hover:scale-[1.02] transition-all">{mode === 'login' ? 'Sign In' : 'Create Account'}</button>
+          <input type="email" placeholder="Email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold" onChange={(e) => setForm({...form, e: e.target.value})} />
+          <input type="password" placeholder="Password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold" onChange={(e) => setForm({...form, p: e.target.value})} />
+          <button type="submit" className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 hover:scale-[1.02] transition-all italic">{mode === 'login' ? 'Sign In' : 'Create Account'}</button>
         </form>
-        {err && <p className="text-rose-400 text-[10px] font-bold mt-4 uppercase">{err}</p>}
-        <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="mt-6 text-[10px] font-black uppercase text-slate-500 tracking-widest">{mode === 'login' ? 'Need an account? Sign Up' : 'Already have one? Sign In'}</button>
+        {err && <p className="text-rose-400 text-[10px] font-bold mt-4 uppercase italic">{err}</p>}
+        <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="mt-6 text-[10px] font-black uppercase text-slate-500 tracking-widest underline decoration-white/10 italic">{mode === 'login' ? 'Need an account? Sign Up' : 'Already have one? Sign In'}</button>
       </div>
     </div>
   );
@@ -397,9 +406,9 @@ function UsernameSetup({ userId, onComplete }: any) {
   return (
     <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
       <div className="text-center w-full max-w-sm">
-        <h2 className="text-2xl font-black text-white mb-6 uppercase italic">Choose Player Name</h2>
-        <input type="text" placeholder="Zlatan" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center focus:border-emerald-400 outline-none font-bold" />
-        <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase mt-6 tracking-widest">Start Tournament</button>
+        <h2 className="text-2xl font-black text-white mb-6 uppercase italic tracking-widest underline decoration-emerald-500">Choose Player Name</h2>
+        <input type="text" placeholder="e.g. Zlatan" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center focus:border-emerald-400 outline-none font-bold italic" />
+        <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase mt-6 tracking-widest shadow-lg shadow-emerald-500/10 italic">Start Tournament</button>
       </div>
     </div>
   );
