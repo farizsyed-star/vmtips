@@ -94,7 +94,6 @@ export default function WorldCupApp() {
   };
 
   useEffect(() => {
-    // Initial Session Check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUser(session.user);
@@ -107,7 +106,6 @@ export default function WorldCupApp() {
       }
     });
 
-    // Real-time Auth Listener
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setUser(session.user);
@@ -124,7 +122,6 @@ export default function WorldCupApp() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  // Auto-route matches tab
   useEffect(() => {
     supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => {
       const fetchedMatches = data || [];
@@ -165,7 +162,6 @@ export default function WorldCupApp() {
     <div className="min-h-screen bg-[#07090d] text-slate-200 font-sans pb-20">
       {showWelcome && <WelcomePopup onClose={() => setShowWelcome(false)} />}
       
-      {/* LOCKED HEADER & NAVIGATION */}
       <div className="sticky top-0 z-50 bg-[#07090d]/95 backdrop-blur-xl border-b border-white/5">
         <header className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -199,7 +195,6 @@ export default function WorldCupApp() {
         </nav>
       </div>
 
-      {/* SCROLLABLE MAIN CONTENT */}
       <main className="max-w-[1400px] mx-auto px-4 mt-6">
         {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} />}
         {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => { setBonusCompleted(true); setView("matches"); }} />}
@@ -212,7 +207,266 @@ export default function WorldCupApp() {
   );
 }
 
-// --- STATS PAGE & MATHEMATICAL BRACKET ---
+// --- MATCH LIST & MATCH CARDS ---
+function MatchList({ matches, tab, setTab, userId }: any) {
+  const now = new Date();
+  
+  let lockTime: Date | null = null;
+  let isPending = false;
+  let matchesLocked = false;
+  let filtered = [];
+
+  if (tab === 6) {
+    lockTime = null; 
+    matchesLocked = true; 
+    filtered = matches.filter((m: any) => m.settled).sort((a,b) => new Date(b.kickoff_time).getTime() - new Date(a.kickoff_time).getTime()); 
+  } else {
+    const groupEnd = matches.filter((m: any) => m?.sub_phase === 'group').slice(-1)[0];
+    const r32End = matches.filter((m: any) => m?.sub_phase === 'r32').slice(-1)[0];
+    const r16End = matches.filter((m: any) => m?.sub_phase === 'r16').slice(-1)[0];
+    const sfEnd = matches.filter((m: any) => m?.sub_phase === 'semi').slice(-1)[0];
+
+    const firstR32 = matches.find((m: any) => m?.sub_phase === 'r32');
+    const firstR16 = matches.find((m: any) => m?.sub_phase === 'r16');
+    const firstQF = matches.find((m: any) => m?.sub_phase === 'quarter');
+    const firstFinal = matches.find((m: any) => m?.sub_phase === 'bronze' || m?.sub_phase === 'final');
+
+    if (tab === 1) { 
+      lockTime = TOURNAMENT_START; matchesLocked = now > TOURNAMENT_START; 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'group' && !m.settled); 
+    } 
+    else if (tab === 2) { 
+      if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'r32' && !m.settled); 
+    } 
+    else if (tab === 3) { 
+      if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'r16' && !m.settled); 
+    } 
+    else if (tab === 4) { 
+      if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => (m?.sub_phase === 'quarter' || m?.sub_phase === 'semi') && !m.settled); 
+    } 
+    else if (tab === 5) { 
+      if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => (m?.sub_phase === 'bronze' || m?.sub_phase === 'final') && !m.settled); 
+    }
+  }
+
+  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals", "Results"];
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+      
+      {/* LEFT SIDEBAR: Instructions */}
+      <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
+        <h3 className="text-emerald-400 font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-xs"><Info className="w-4 h-4"/> How to Play</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed mb-4">For Group Stage and Round of 32, predict the 1X2 outcome. For later rounds, enter the exact scoreline. If a knockout match ends in a draw, you must also select the penalty winner.</p>
+        <p className="text-[11px] text-slate-400 leading-relaxed mb-6">Auto-save is enabled. Look for the <CheckCircle className="inline w-3 h-3 text-emerald-400 mx-1"/> to ensure your prediction is logged securely.</p>
+        <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl">
+          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Goal className="w-3 h-3"/> Scoring Tip</p>
+          <p className="text-[10px] text-slate-400 leading-relaxed">Check the <strong className="text-white">Rules</strong> tab to see how points increase as the tournament progresses!</p>
+        </div>
+      </div>
+
+      {/* CENTER: Main Matches Content */}
+      <div className="col-span-1 lg:col-span-2">
+        <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide w-full">
+            <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
+            <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
+            <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
+            <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
+            <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
+            <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
+          </div>
+        </div>
+
+        {tab !== 6 && <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />}
+        
+        <div className="grid gap-4">
+          {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
+          {filtered.length === 0 && (
+            <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">
+               {tab === 6 ? "No matches have finished yet." : !isPending ? "No matches remaining in this round." : "Waiting for previous round..."}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT SIDEBAR: Top 5 Leaderboard */}
+      <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
+        <h3 className="text-amber-400 font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-xs"><Trophy className="w-4 h-4"/> Top 5 Leaders</h3>
+        <MiniLeaderboard />
+      </div>
+    </div>
+  );
+}
+
+function PhaseTab({ id, label, active, onClick }: any) {
+  return (
+    <button onClick={() => onClick(id)} className={`whitespace-nowrap pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${active ? "border-b-2 border-emerald-400 text-white" : "text-slate-600"}`}>{label}</button>
+  );
+}
+
+function MatchCard({ match, userId, locked, isPending }: any) {
+  const [pred, setPred] = useState({ h: "", a: "", pw: "" });
+  const [initialLoad, setInitialLoad] = useState(true);
+  
+  useEffect(() => {
+    supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => {
+      if (data) setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" });
+      setInitialLoad(false);
+    });
+  }, [match.id, userId]);
+
+  useEffect(() => {
+    if (initialLoad || locked || pred.h === "" || pred.a === "") return;
+    const timer = setTimeout(async () => {
+      await supabase.from("predictions").upsert({ 
+        user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw 
+      }, { onConflict: 'user_id,match_id' });
+    }, 500); 
+    return () => clearTimeout(timer);
+  }, [pred, initialLoad, locked, match.id, userId]);
+
+  const is1X2 = match.sub_phase === 'group' || match.sub_phase === 'r32';
+  const active1X2 = (pred.h !== "" && pred.a !== "") 
+    ? (parseInt(pred.h) > parseInt(pred.a) ? '1' : parseInt(pred.h) < parseInt(pred.a) ? '2' : 'X') 
+    : null;
+
+  const isDraw = pred.h !== "" && pred.a !== "" && pred.h === pred.a;
+  const needsPw = match.phase > 1 && isDraw && !is1X2;
+  const isComplete = pred.h !== "" && pred.a !== "" && (!needsPw || pred.pw !== "");
+  const hasStartedTyping = pred.h !== "" || pred.a !== "";
+
+  return (
+    <div className={`bg-white/5 border rounded-2xl p-6 transition-all relative ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
+      {match.settled && (
+        <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[9px] font-black px-3 py-1 rounded-bl-xl rounded-tr-2xl uppercase tracking-widest shadow-sm z-10">
+          FT: {match.home_score} - {match.away_score}
+          {match.penalty_winner_actual ? ` (${match.penalty_winner_actual === 'home' ? getTeamLabel(match.home_team) : getTeamLabel(match.away_team)} pens)` : ''}
+        </div>
+      )}
+
+      <div className="flex justify-between items-center mb-4 mt-2">
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 leading-none">{locked && !match.settled && <Clock className="w-3 h-3 text-rose-500" />}{new Date(match.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="bg-white/5 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded uppercase italic">{match.group_name || match.sub_phase}</span>
+          {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1 italic"><Lock className="w-2 h-2" /> View Only</span>}
+        </div>
+        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10 mr-12 md:mr-0">{match.channel}</span>
+      </div>
+      
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
+          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
+          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.home_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.home_team}</span>
+        </div>
+        
+        <div className="flex items-center justify-center gap-2">
+          {is1X2 ? (
+             <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-14">
+               <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === '1' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>1</button>
+               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '0', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === 'X' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>X</button>
+               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === '2' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>2</button>
+             </div>
+          ) : (
+             <>
+               <input type="number" min="0" disabled={locked} value={pred.h} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+                 onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
+               <input type="number" min="0" disabled={locked} value={pred.a} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
+                 onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
+             </>
+          )}
+
+          <div className="flex flex-col items-center justify-center w-5 h-full ml-1">
+             {!locked && hasStartedTyping && (
+                isComplete ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : <X className="w-5 h-5 text-rose-500" />
+             )}
+          </div>
+        </div>
+        
+        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
+          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
+          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.away_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.away_team}</span>
+        </div>
+      </div>
+
+      {needsPw && !locked && (
+        <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
+          <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner <span className="text-rose-500">* Required</span></p>
+          <div className="flex gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
+            <button onClick={() => setPred({...pred, pw: 'home'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
+            <button onClick={() => setPred({...pred, pw: 'away'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- BONUS PAGE ---
+function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isCompleted: boolean, onSaved: () => void }) {
+  const isPermanentlyLocked = (new Date() > TOURNAMENT_START) || isCompleted;
+  const [form, setForm] = useState({ scorer: "", assister: "", cards: "", mvp: "", goals: "" });
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    supabase.from("bonus_predictions").select("*").eq("user_id", userId).single().then(({ data }) => { if (data) setForm({ scorer: data.top_scorer, assister: data.top_assister, cards: data.most_cards_team, mvp: data.mvp, goals: data.total_goals_guess?.toString() || "" }); setLoading(false); });
+  }, [userId]);
+  const save = async () => {
+    if (isPermanentlyLocked || !form.goals) return;
+    await supabase.from("bonus_predictions").upsert({ user_id: userId, top_scorer: form.scorer, top_assister: form.assister, most_cards_team: form.cards, mvp: form.mvp, total_goals_guess: parseInt(form.goals) });
+    onSaved();
+  };
+  if (loading) return null;
+  return (
+    <div className="space-y-6 max-w-3xl mx-auto">
+      <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Predictions Lock In" />
+      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12 shadow-xl">
+        <div className="flex justify-between items-start mb-2 border-b border-white/5 pb-4">
+          <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter shadow-emerald-500/10">Bonus Predictions</h2>
+          {isPermanentlyLocked && <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-md"><Lock className="w-3 h-3"/> Locked</span>}
+        </div>
+        <p className="text-slate-400 text-sm font-bold my-10 uppercase tracking-widest italic leading-relaxed">Put your football brain to the test and predict the following:</p>
+        <div className="space-y-10">
+          <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
+          <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={isPermanentlyLocked} />
+          <div>
+            <div className="flex justify-between items-center mb-3 ml-1"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Card Magnets: Which team will collect the most cards?</p><span className="text-[10px] font-black text-emerald-400">5 points</span></div>
+            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold disabled:opacity-50">
+              <option value="">Select Country</option>
+              {FULL_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <BonusField label="Tournament MVP: Who will be crowned player of the tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
+          <div>
+            <div className="flex justify-between items-end mb-3 ml-1">
+              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Goal Rush: How many goals will be scored in total during the tournament? (including extra time, excluding penalty shootouts)</p>
+              <div className="text-right text-[10px] font-black text-emerald-400 leading-tight whitespace-nowrap">Closest guess: 5 pts <br/> Exactly right: 10 pts</div>
+            </div>
+            <input type="number" value={form.goals} disabled={isPermanentlyLocked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
+          </div>
+          {!isPermanentlyLocked && <button onClick={save} className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase mt-6 tracking-[0.2em] shadow-lg italic">Save & Unlock Matches</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BonusField({ label, points, value, onChange, disabled, type="text" }: any) {
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-3 ml-1">
+        <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
+        <span className="text-[10px] font-black text-emerald-400 whitespace-nowrap pl-4">{points}</span>
+      </div>
+      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
+    </div>
+  );
+}
+
+// --- STATS COMPONENTS ---
 function StatsPage({ matches }: { matches: any[] }) {
   const [subTab, setSubTab] = useState(1);
   const [players, setPlayers] = useState<any[]>([]);
@@ -531,20 +785,39 @@ function AdminPanel({ matches }: any) {
   const settleMatch = async (m: any) => {
     const s = scores[m.id];
     if (!s || s.h === "" || s.a === "") return alert("Enter scores!");
+    if (m.phase > 1 && s.h === s.a && !s.pw && m.sub_phase !== 'r32') {
+      return alert("Select a penalty winner for the tie!");
+    }
+
     const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
     if (!preds) return;
+
     for (const p of preds) {
       let pts = 0;
       const actH = parseInt(s.h);
       const actA = parseInt(s.a);
+      
       const isExact = p.pred_home === actH && p.pred_away === actA;
-      const isOutcome = (Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA));
-      if (m.sub_phase === 'group') pts = isExact ? 2 : (isOutcome ? 1 : 0);
-      else if (['r32', 'r16', 'quarter'].includes(m.sub_phase)) pts = isExact ? 3 : (isOutcome ? 2 : 0);
-      else if (m.sub_phase === 'semi') pts = isExact ? 4 : (isOutcome ? 3 : 0);
-      else if (m.sub_phase === 'bronze') pts = isExact ? 5 : (isOutcome ? 4 : 0);
-      else if (m.sub_phase === 'final') pts = isExact ? 6 : (isOutcome ? 5 : 0);
-      if (m.phase > 1 && actH === actA && p.penalty_winner_pred === s.pw) pts += 1;
+      let isOutcome = false;
+
+      if (m.sub_phase === 'group' || m.sub_phase === 'r32') {
+        isOutcome = Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA);
+      } else {
+        if (actH > actA) {
+          isOutcome = p.pred_home > p.pred_away;
+        } else if (actH < actA) {
+          isOutcome = p.pred_home < p.pred_away;
+        } else {
+          isOutcome = (p.pred_home === p.pred_away) && (p.penalty_winner_pred === s.pw);
+        }
+      }
+
+      if (m.sub_phase === 'group') pts = isOutcome ? 1 : 0;
+      else if (m.sub_phase === 'r32') pts = isOutcome ? 2 : 0;
+      else if (m.sub_phase === 'r16') pts = isExact ? 5 : (isOutcome ? 3 : 0);
+      else if (m.sub_phase === 'quarter' || m.sub_phase === 'semi') pts = isExact ? 6 : (isOutcome ? 4 : 0);
+      else if (m.sub_phase === 'bronze' || m.sub_phase === 'final') pts = isExact ? 7 : (isOutcome ? 5 : 0);
+
       if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
     }
     await supabase.from("matches").update({ home_score: s.h, away_score: s.a, penalty_winner_actual: s.pw, settled: true }).eq("id", m.id);
@@ -562,7 +835,7 @@ function AdminPanel({ matches }: any) {
               <div className="flex gap-2">
                 <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
                 <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
-                {m.phase > 1 && (
+                {m.phase > 1 && m.sub_phase !== 'r32' && (
                   <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
                     <option value="">PW?</option>
                     <option value="home">Home</option>
@@ -590,305 +863,7 @@ function AdminPanel({ matches }: any) {
   );
 }
 
-function NavBtn({ active, onClick, label }: any) {
-  return (
-    <button onClick={onClick} className={`flex-1 md:w-32 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
-      {label}
-    </button>
-  );
-}
-
-function WelcomePopup({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl grid place-items-center p-6">
-      <div className="bg-[#0f1117] border border-white/10 rounded-[2.5rem] p-10 max-w-md w-full relative shadow-2xl text-center">
-        <Sparkles className="text-amber-400 w-12 h-12 mb-6 mx-auto animate-pulse" />
-        <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none">
-          Welcome to <br/>
-          <span className="text-emerald-400">World Cup '26</span><br/>
-          <span className="text-xl tracking-widest text-slate-300 mt-2 block">Couch Potato Edition</span>
-        </h2>
-        <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-6 text-left">
-          <p className="font-bold text-center">Here is how the prediction league works:</p>
-          <ul className="list-disc pl-5 space-y-2 text-xs">
-            <li><strong className="text-white">Bonus (Locks June 11):</strong> Predict tournament stats. <span className="text-emerald-400">Must be completed first!</span></li>
-            <li><strong className="text-white">Group Stage (Locks June 11):</strong> Predict exact scores for all group matches.</li>
-            <li><strong className="text-white">Knockouts (Locks per round):</strong> Predict scores and penalty winners. Locks when the first game of that round starts.</li>
-          </ul>
-          <p className="text-xs italic text-center mt-4">Check out the <strong className="text-white">Rules</strong> tab for the full scoring system.</p>
-        </div>
-        <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all shadow-md">Let's Get Started</button>
-      </div>
-    </div>
-  );
-}
-
-// Side Leaderboard Component
-function MiniLeaderboard() {
-  const [list, setList] = useState([]);
-  useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).limit(5).then(({ data }) => setList(data as any || [])); }, []);
-  return (
-    <div className="space-y-3">
-      {list.length === 0 && <p className="text-[10px] text-slate-500 uppercase tracking-widest italic text-center py-4">No points yet</p>}
-      {list.map((p: any, i) => (
-        <div key={p.id} className="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 last:pb-0">
-          <div className="flex items-center gap-3">
-            <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-slate-400 text-black" : i === 2 ? "bg-orange-800 text-black" : "text-slate-500 bg-white/5"}`}>{i + 1}</span>
-            <span className="text-[11px] font-bold text-white uppercase truncate max-w-[80px]">{p.username}</span>
-          </div>
-          <span className="text-sm font-black text-emerald-400 tabular-nums">{p.total_points}</span>
-        </div>
-      ))}
-      <button onClick={() => window.scrollTo(0,0)} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">See Full Standings</button>
-    </div>
-  );
-}
-
-function MatchList({ matches, tab, setTab, userId }: any) {
-  const now = new Date();
-  
-  let lockTime: Date | null = null;
-  let isPending = false;
-  let matchesLocked = false;
-  let filtered = [];
-
-  if (tab === 6) {
-    lockTime = null; 
-    matchesLocked = true; 
-    filtered = matches.filter((m: any) => m.settled).sort((a,b) => new Date(b.kickoff_time).getTime() - new Date(a.kickoff_time).getTime()); 
-  } else {
-    const groupEnd = matches.filter((m: any) => m?.sub_phase === 'group').slice(-1)[0];
-    const r32End = matches.filter((m: any) => m?.sub_phase === 'r32').slice(-1)[0];
-    const r16End = matches.filter((m: any) => m?.sub_phase === 'r16').slice(-1)[0];
-    const sfEnd = matches.filter((m: any) => m?.sub_phase === 'semi').slice(-1)[0];
-
-    const firstR32 = matches.find((m: any) => m?.sub_phase === 'r32');
-    const firstR16 = matches.find((m: any) => m?.sub_phase === 'r16');
-    const firstQF = matches.find((m: any) => m?.sub_phase === 'quarter');
-    const firstFinal = matches.find((m: any) => m?.sub_phase === 'bronze' || m?.sub_phase === 'final');
-
-    if (tab === 1) { 
-      lockTime = TOURNAMENT_START; matchesLocked = now > TOURNAMENT_START; 
-      filtered = matches.filter((m: any) => m?.sub_phase === 'group' && !m.settled); 
-    } 
-    else if (tab === 2) { 
-      if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
-      filtered = matches.filter((m: any) => m?.sub_phase === 'r32' && !m.settled); 
-    } 
-    else if (tab === 3) { 
-      if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
-      filtered = matches.filter((m: any) => m?.sub_phase === 'r16' && !m.settled); 
-    } 
-    else if (tab === 4) { 
-      if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
-      filtered = matches.filter((m: any) => (m?.sub_phase === 'quarter' || m?.sub_phase === 'semi') && !m.settled); 
-    } 
-    else if (tab === 5) { 
-      if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
-      filtered = matches.filter((m: any) => (m?.sub_phase === 'bronze' || m?.sub_phase === 'final') && !m.settled); 
-    }
-  }
-
-  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals", "Results"];
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-      
-      {/* LEFT SIDEBAR: Instructions (Hidden on Mobile) */}
-      <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
-        <h3 className="text-emerald-400 font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-xs"><Info className="w-4 h-4"/> How to Play</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed mb-4">Enter your predicted final scoreline for each match. If a knockout match ends in a draw, you must also select the penalty winner.</p>
-        <p className="text-[11px] text-slate-400 leading-relaxed mb-6">Auto-save is enabled. Look for the <CheckCircle className="inline w-3 h-3 text-emerald-400 mx-1"/> to ensure your prediction is logged securely.</p>
-        
-        <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl">
-          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Goal className="w-3 h-3"/> Scoring Tip</p>
-          <p className="text-[10px] text-slate-400 leading-relaxed">Exact scores give maximum points. Correct winner outcomes give partial points. Unsaved predictions score 0.</p>
-        </div>
-      </div>
-
-      {/* CENTER: Main Matches Content */}
-      <div className="col-span-1 lg:col-span-2">
-        <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide w-full">
-            <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
-            <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
-            <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
-            <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
-            <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
-            <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
-          </div>
-        </div>
-
-        {tab !== 6 && <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />}
-        
-        <div className="grid gap-4">
-          {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
-          {filtered.length === 0 && (
-            <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">
-               {tab === 6 ? "No matches have finished yet." : !isPending ? "No matches remaining in this round." : "Waiting for previous round..."}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* RIGHT SIDEBAR: Top 5 Leaderboard (Hidden on Mobile) */}
-      <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
-        <h3 className="text-amber-400 font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-xs"><Trophy className="w-4 h-4"/> Top 5 Leaders</h3>
-        <MiniLeaderboard />
-      </div>
-
-    </div>
-  );
-}
-
-function PhaseTab({ id, label, active, onClick }: any) {
-  return (
-    <button onClick={() => onClick(id)} className={`whitespace-nowrap pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${active ? "border-b-2 border-emerald-400 text-white" : "text-slate-600"}`}>{label}</button>
-  );
-}
-
-function MatchCard({ match, userId, locked, isPending }: any) {
-  const [pred, setPred] = useState({ h: "", a: "", pw: "" });
-  const [initialLoad, setInitialLoad] = useState(true);
-  
-  useEffect(() => {
-    supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => {
-      if (data) setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" });
-      setInitialLoad(false);
-    });
-  }, [match.id, userId]);
-
-  useEffect(() => {
-    if (initialLoad || locked || pred.h === "" || pred.a === "") return;
-    const timer = setTimeout(async () => {
-      await supabase.from("predictions").upsert({ 
-        user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw 
-      }, { onConflict: 'user_id,match_id' });
-    }, 500); 
-    return () => clearTimeout(timer);
-  }, [pred, initialLoad, locked, match.id, userId]);
-
-  const isDraw = pred.h !== "" && pred.a !== "" && pred.h === pred.a;
-  const needsPw = match.phase > 1 && isDraw;
-  const isComplete = pred.h !== "" && pred.a !== "" && (!needsPw || pred.pw !== "");
-  const hasStartedTyping = pred.h !== "" || pred.a !== "";
-
-  return (
-    <div className={`bg-white/5 border rounded-2xl p-6 transition-all relative ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
-      {match.settled && (
-        <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[9px] font-black px-3 py-1 rounded-bl-xl rounded-tr-2xl uppercase tracking-widest shadow-sm z-10">
-          FT: {match.home_score} - {match.away_score}
-          {match.penalty_winner_actual ? ` (${match.penalty_winner_actual === 'home' ? getTeamLabel(match.home_team) : getTeamLabel(match.away_team)} pens)` : ''}
-        </div>
-      )}
-
-      <div className="flex justify-between items-center mb-4 mt-2">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 leading-none">{locked && !match.settled && <Clock className="w-3 h-3 text-rose-500" />}{new Date(match.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-          <span className="bg-white/5 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded uppercase italic">{match.group_name || match.sub_phase}</span>
-          {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1 italic"><Lock className="w-2 h-2" /> View Only</span>}
-        </div>
-        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10 mr-12 md:mr-0">{match.channel}</span>
-      </div>
-      
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
-          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
-          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.home_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.home_team}</span>
-        </div>
-        
-        <div className="flex items-center justify-center gap-2">
-          <input type="number" min="0" disabled={locked} value={pred.h} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
-            onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
-          
-          <div className="flex flex-col items-center justify-center w-5 h-full">
-             {!locked && hasStartedTyping && (
-                isComplete ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : <X className="w-5 h-5 text-rose-500" />
-             )}
-          </div>
-
-          <input type="number" min="0" disabled={locked} value={pred.a} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
-            onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
-        </div>
-        
-        <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
-          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
-          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.away_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.away_team}</span>
-        </div>
-      </div>
-
-      {pred.h !== "" && pred.h === pred.a && match.phase > 1 && !locked && (
-        <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
-          <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner (+1pt) <span className="text-rose-500">* Required</span></p>
-          <div className="flex gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
-            <button onClick={() => setPred({...pred, pw: 'home'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
-            <button onClick={() => setPred({...pred, pw: 'away'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isCompleted: boolean, onSaved: () => void }) {
-  const isPermanentlyLocked = (new Date() > TOURNAMENT_START) || isCompleted;
-  const [form, setForm] = useState({ scorer: "", assister: "", cards: "", mvp: "", goals: "" });
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    supabase.from("bonus_predictions").select("*").eq("user_id", userId).single().then(({ data }) => { if (data) setForm({ scorer: data.top_scorer, assister: data.top_assister, cards: data.most_cards_team, mvp: data.mvp, goals: data.total_goals_guess?.toString() || "" }); setLoading(false); });
-  }, [userId]);
-  const save = async () => {
-    if (isPermanentlyLocked || !form.goals) return;
-    await supabase.from("bonus_predictions").upsert({ user_id: userId, top_scorer: form.scorer, top_assister: form.assister, most_cards_team: form.cards, mvp: form.mvp, total_goals_guess: parseInt(form.goals) });
-    onSaved();
-  };
-  if (loading) return null;
-  return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Predictions Lock In" />
-      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12">
-        <div className="flex justify-between items-start mb-2 border-b border-white/5 pb-4">
-          <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter shadow-emerald-500/10">Bonus Predictions</h2>
-          {isPermanentlyLocked && <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-md"><Lock className="w-3 h-3"/> Locked</span>}
-        </div>
-        <p className="text-slate-400 text-sm font-bold my-10 uppercase tracking-widest italic leading-relaxed">Put your football brain to the test and predict the following:</p>
-        <div className="space-y-10">
-          <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
-          <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={isPermanentlyLocked} />
-          <div>
-            <div className="flex justify-between items-center mb-3 ml-1"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Card Magnets: Which team will collect the most cards?</p><span className="text-[10px] font-black text-emerald-400">5 points</span></div>
-            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold disabled:opacity-50">
-              <option value="">Select Country</option>
-              {FULL_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <BonusField label="Tournament MVP: Who will be crowned player of the tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
-          <div>
-            <div className="flex justify-between items-end mb-3 ml-1">
-              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Goal Rush: How many goals will be scored in total during the tournament? (including extra time, excluding penalty shootouts)</p>
-              <div className="text-right text-[10px] font-black text-emerald-400 leading-tight whitespace-nowrap">Closest guess: 5 pts <br/> Exactly right: 10 pts</div>
-            </div>
-            <input type="number" value={form.goals} disabled={isPermanentlyLocked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
-          </div>
-          {!isPermanentlyLocked && <button onClick={save} className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase mt-6 tracking-[0.2em] shadow-lg italic">Save & Unlock Matches</button>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BonusField({ label, points, value, onChange, disabled, type="text" }: any) {
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-3 ml-1">
-        <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
-        <span className="text-[10px] font-black text-emerald-400 whitespace-nowrap pl-4">{points}</span>
-      </div>
-      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
-    </div>
-  );
-}
-
+// --- UTILS (Timer, Leaderboard, Rules, Auth) ---
 function CountdownTimer({ targetDate, label, isPending }: any) {
   const [timeLeft, setTimeLeft] = useState<any>(null);
   useEffect(() => {
@@ -955,18 +930,91 @@ function Leaderboard() {
   );
 }
 
+function MiniLeaderboard() {
+  const [list, setList] = useState([]);
+  useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).limit(5).then(({ data }) => setList(data as any || [])); }, []);
+  return (
+    <div className="space-y-3">
+      {list.length === 0 && <p className="text-[10px] text-slate-500 uppercase tracking-widest italic text-center py-4">No points yet</p>}
+      {list.map((p: any, i) => (
+        <div key={p.id} className="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 last:pb-0">
+          <div className="flex items-center gap-3">
+            <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-slate-400 text-black" : i === 2 ? "bg-orange-800 text-black" : "text-slate-500 bg-white/5"}`}>{i + 1}</span>
+            <span className="text-[11px] font-bold text-white uppercase truncate max-w-[80px]">{p.username}</span>
+          </div>
+          <span className="text-sm font-black text-emerald-400 tabular-nums">{p.total_points}</span>
+        </div>
+      ))}
+      <button onClick={() => window.scrollTo(0,0)} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">See Full Standings</button>
+    </div>
+  );
+}
+
+function NavBtn({ active, onClick, label }: any) {
+  return (
+    <button onClick={onClick} className={`flex-1 md:flex-none md:w-32 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+      {label}
+    </button>
+  );
+}
+
+function WelcomePopup({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl grid place-items-center p-6">
+      <div className="bg-[#0f1117] border border-white/10 rounded-[2.5rem] p-10 max-w-md w-full relative shadow-2xl text-center">
+        <Sparkles className="text-amber-400 w-12 h-12 mb-6 mx-auto animate-pulse" />
+        <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none">
+          Welcome to <br/>
+          <span className="text-emerald-400">World Cup '26</span><br/>
+          <span className="text-xl tracking-widest text-slate-300 mt-2 block">Couch Potato Edition</span>
+        </h2>
+        <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-6 text-left">
+          <p className="font-bold text-center">Here is how the prediction league works:</p>
+          <ul className="list-disc pl-5 space-y-2 text-xs">
+            <li><strong className="text-white">Bonus (Locks June 11):</strong> Predict tournament stats. <span className="text-emerald-400">Must be completed first!</span></li>
+            <li><strong className="text-white">Group Stage & R32:</strong> Predict outcomes (1X2) for all matches.</li>
+            <li><strong className="text-white">Knockouts (R16 onwards):</strong> Predict exact scores. Locks when the first game of that round starts.</li>
+          </ul>
+          <p className="text-xs italic text-center mt-4">Check out the <strong className="text-white">Rules</strong> tab for the full scoring system.</p>
+        </div>
+        <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all shadow-md">Let's Get Started</button>
+      </div>
+    </div>
+  );
+}
+
 function RulesPage() {
   return (
     <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-10 max-w-5xl mx-auto shadow-xl">
       <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest shadow-emerald-500/10 leading-none">Scoring Engine</h3>
-      <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Group Stage</span> 1pt (Winner Outcome) / 2pt (Score)</li>
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">R32, R16 & QF</span> 2pt (Winner Outcome) / 3pt (Score)</li>
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Semi Finals</span> 3pt (Winner Outcome) / 4pt (Score)</li>
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Bronze Match</span> 4pt (Winner Outcome) / 5pt (Score)</li>
-        <li className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white block mb-1">Gold Final</span> 5pt (Winner Outcome) / 6pt (Score)</li>
+      <ul className="grid grid-cols-1 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
+          <span className="text-white block mb-1 md:mb-0">Group Stage</span> 
+          <span className="text-emerald-400">1pt (1X2 Outcome)</span>
+        </li>
+        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
+          <span className="text-white block mb-1 md:mb-0">Round of 32</span> 
+          <span className="text-emerald-400">2pt (1X2 Outcome)</span>
+        </li>
+        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
+          <span className="text-white block mb-1 md:mb-0">Round of 16</span> 
+          <span className="text-emerald-400">3pt (Outcome) / 5pt (Perfect Score)</span>
+        </li>
+        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
+          <span className="text-white block mb-1 md:mb-0">Quarter & Semi Finals</span> 
+          <span className="text-emerald-400">4pt (Outcome) / 6pt (Perfect Score)</span>
+        </li>
+        <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between">
+          <span className="text-white block mb-1 md:mb-0">Gold & Bronze Finals</span> 
+          <span className="text-emerald-400">5pt (Outcome) / 7pt (Perfect Score)</span>
+        </li>
       </ul>
-      <p className="text-xs font-bold text-slate-500 italic mt-6">*Outcome means correctly picking the correct winner of the match, or a draw in the group stages. Perfect Score means correctly guessing the final scoreline. Perfect Score points supersede Outcome points.</p>
+      <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-2xl">
+        <p className="text-[11px] font-bold text-slate-400 leading-relaxed">
+          * <strong className="text-white">Outcome</strong> means correctly picking the winner of the match, or predicting a draw in the Group/R32 stages. In the later knockout rounds, if you predict a draw, you must correctly pick the penalty shootout winner to get the Outcome points.<br/><br/>
+          * <strong className="text-white">Perfect Score</strong> means correctly guessing the final scoreline. Perfect Score points supersede Outcome points (e.g., getting a Perfect Score in the Quarter Finals grants you a total of 6 points, not 10).
+        </p>
+      </div>
     </div>
   );
 }
