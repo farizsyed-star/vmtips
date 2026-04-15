@@ -126,35 +126,39 @@ export default function WorldCupApp() {
     <div className="min-h-screen bg-[#07090d] text-slate-200 font-sans pb-20">
       {showWelcome && <WelcomePopup onClose={() => setShowWelcome(false)} />}
       
-      <header className="border-b border-white/5 bg-black/40 backdrop-blur-md sticky top-0 z-50 px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Trophy className="text-emerald-500 w-5 h-5" />
-          <h1 className="font-black text-xl text-white uppercase italic tracking-tighter">World Cup <span className="text-emerald-400">2026</span></h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-[8px] text-slate-500 uppercase font-black leading-none tracking-widest">Points</p>
-            <p className="text-amber-400 font-black text-xl leading-none">{profile?.total_points || 0}</p>
+      {/* LOCKED HEADER & NAVIGATION */}
+      <div className="sticky top-0 z-50 bg-[#07090d]/95 backdrop-blur-xl border-b border-white/5">
+        <header className="max-w-[1400px] mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trophy className="text-emerald-500 w-5 h-5" />
+            <h1 className="font-black text-xl text-white uppercase italic tracking-tighter">World Cup <span className="text-emerald-400">2026</span></h1>
           </div>
-          {user?.email === ADMIN_EMAIL && <Shield onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
-          <LogOut onClick={() => supabase.auth.signOut()} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
-        </div>
-      </header>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[8px] text-slate-500 uppercase font-black leading-none tracking-widest">Points</p>
+              <p className="text-amber-400 font-black text-xl leading-none">{profile?.total_points || 0}</p>
+            </div>
+            {user?.email === ADMIN_EMAIL && <Shield onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
+            <LogOut onClick={() => supabase.auth.signOut()} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
+          </div>
+        </header>
 
-      <nav className="max-w-5xl mx-auto px-4 mt-6 flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide">
-        <button 
-          onClick={() => bonusCompleted && setView("matches")} 
-          className={`flex-1 min-w-[110px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
-        >
-          {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
-        </button>
-        <NavBtn active={view === "bonus"} onClick={() => setView("bonus")} label="Bonus" />
-        <NavBtn active={view === "stats"} onClick={() => setView("stats")} label="Stats" />
-        <NavBtn active={view === "leaderboard"} onClick={() => setView("leaderboard")} label="Leaderboard" />
-        <NavBtn active={view === "rules"} onClick={() => setView("rules")} label="Rules" />
-      </nav>
+        <nav className="max-w-5xl mx-auto px-4 pb-4 flex gap-1 overflow-x-auto scrollbar-hide">
+          <button 
+            onClick={() => bonusCompleted && setView("matches")} 
+            className={`flex-1 min-w-[110px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
+          >
+            {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
+          </button>
+          <NavBtn active={view === "bonus"} onClick={() => setView("bonus")} label="Bonus" />
+          <NavBtn active={view === "stats"} onClick={() => setView("stats")} label="Stats" />
+          <NavBtn active={view === "leaderboard"} onClick={() => setView("leaderboard")} label="Leaderboard" />
+          <NavBtn active={view === "rules"} onClick={() => setView("rules")} label="Rules" />
+        </nav>
+      </div>
 
-      <main className="max-w-[1400px] mx-auto px-4 mt-8">
+      {/* SCROLLABLE MAIN CONTENT */}
+      <main className="max-w-[1400px] mx-auto px-4 mt-6">
         {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} />}
         {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => { setBonusCompleted(true); setView("matches"); }} />}
         {view === "stats" && <StatsPage matches={matches} />}
@@ -176,11 +180,14 @@ function StatsPage({ matches }: { matches: any[] }) {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
-        <button onClick={() => setSubTab(1)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
-        <button onClick={() => setSubTab(2)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
-        <button onClick={() => setSubTab(3)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
+    <div className="space-y-6">
+      {/* LOCKED STATS TABS */}
+      <div className="sticky top-28 z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
+          <button onClick={() => setSubTab(1)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
+          <button onClick={() => setSubTab(2)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
+          <button onClick={() => setSubTab(3)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
+        </div>
       </div>
 
       {subTab === 1 && <StandingsTable matches={matches} />}
@@ -266,8 +273,10 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
+// Compact Bracket Match Box with Date/Time INSIDE
 const BracketMatch = ({ match }: { match?: any }) => {
   const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
+  // Format sv-SE enforces 24-hour clock formatting (e.g. 18:00)
   const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : "--:--";
   const dateStr = kickoffDate ? kickoffDate.toLocaleDateString('en-GB', { month: 'short', day: '2-digit' }) : "TBD";
 
@@ -275,32 +284,35 @@ const BracketMatch = ({ match }: { match?: any }) => {
   const aWin = match?.settled && (match.away_score > match.home_score || match.penalty_winner_actual === 'away');
 
   if (!match) return (
-    <div className="relative flex justify-center items-center w-28 h-[46px] bg-[#1a1d24]/30 border border-white/5 rounded-md">
+    <div className="relative flex justify-center items-center w-[130px] h-[56px] bg-[#1a1d24]/30 border border-white/5 rounded-lg">
       <span className="text-[9px] font-black text-slate-700 italic uppercase tracking-widest">Match TBD</span>
     </div>
   );
 
   return (
-    <div className={`relative flex flex-col justify-between w-28 h-[46px] bg-[#1a1d24] border ${match.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-md hover:border-emerald-500/50 transition-colors z-10`}>
-      <div className="absolute bottom-full left-0 w-full flex justify-between px-0.5 mb-0.5">
-        <span className="text-[7px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
-        <span className="text-[7px] font-black text-emerald-400/80 tracking-widest uppercase">{timeStr}</span>
+    <div className={`relative flex flex-col justify-between w-[130px] h-[56px] bg-[#1a1d24] border ${match?.settled ? 'border-white/10 opacity-100' : 'border-white/5 opacity-80'} rounded-lg hover:border-emerald-500/50 transition-colors shadow-lg px-2 py-1 z-10`}>
+      {/* Top Row: Date & Swedish Time */}
+      <div className="w-full flex justify-between items-center mb-0.5">
+        <span className="text-[7.5px] font-bold text-slate-500 tracking-widest uppercase">{dateStr}</span>
+        <span className="text-[7.5px] font-black text-emerald-400/80 tracking-widest uppercase">{timeStr}</span>
       </div>
       
-      <div className="w-full flex justify-between items-center px-1.5 py-0.5 border-b border-white/5 h-1/2">
+      {/* Home Team */}
+      <div className="w-full flex justify-between items-center mb-0.5">
          <div className="flex items-center gap-1.5">
-           {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-bold uppercase tracking-tight ${hWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.home_team)}</span>
+           {getFlag(match?.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[9px] font-black uppercase tracking-widest ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.home_team)}</span>
          </div>
-         <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.home_score : "-"}</span>
+         <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.home_score : "-"}</span>
       </div>
       
-      <div className="w-full flex justify-between items-center px-1.5 py-0.5 h-1/2">
+      {/* Away Team */}
+      <div className="w-full flex justify-between items-center">
          <div className="flex items-center gap-1.5">
-           {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3 h-2 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3 h-2 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-bold uppercase tracking-tight ${aWin ? "text-emerald-400" : "text-white"}`}>{getTeamLabel(match.away_team)}</span>
+           {getFlag(match?.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
+           <span className={`text-[9px] font-black uppercase tracking-widest ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.away_team)}</span>
          </div>
-         <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{match.settled ? match.away_score : "-"}</span>
+         <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.away_score : "-"}</span>
       </div>
     </div>
   );
@@ -335,6 +347,7 @@ const SingleLine = ({ height }: { height: number }) => (
 );
 
 function KnockoutBracket({ matches }: { matches: any[] }) {
+  // Chronological Mapping
   const r32 = (matches || []).filter(m => m.sub_phase === 'r32').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const r16 = (matches || []).filter(m => m.sub_phase === 'r16').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const qf = (matches || []).filter(m => m.sub_phase === 'quarter').sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
@@ -354,7 +367,7 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
     "M103": bronze, "M104": final
   };
 
-  const H = 64; 
+  const H = 64; // Height per spacing block
 
   return (
     <div className="bg-[#0b0d14] border border-white/5 rounded-3xl p-8 overflow-x-auto shadow-2xl scrollbar-hide">
@@ -370,6 +383,7 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
          <div className="w-[130px]">Round of 32</div>
       </div>
       
+      {/* Core Flex Layout */}
       <div className="flex min-w-[1200px] justify-between items-center text-center">
         
         {/* LEFT PATH */}
@@ -572,7 +586,6 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
   );
 }
 
-// --- MATCH LIST & RESULTS LOGIC ---
 function MatchList({ matches, tab, setTab, userId }: any) {
   const now = new Date();
   
@@ -622,16 +635,19 @@ function MatchList({ matches, tab, setTab, userId }: any) {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {tab !== 6 && <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />}
-      
-      <div className="flex gap-4 mb-8 border-b border-white/5 overflow-x-auto pb-2 scrollbar-hide">
-        <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
-        <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
-        <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
-        <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
-        <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
-        <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
+      {/* LOCKED MATCHES TABS */}
+      <div className="sticky top-28 z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-4 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
+          <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
+          <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
+          <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
+          <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
+          <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
+          <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
+        </div>
       </div>
+
+      {tab !== 6 && <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />}
       
       <div className="grid gap-4">
         {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
@@ -681,7 +697,7 @@ function MatchCard({ match, userId, locked, isPending }: any) {
           <span className="bg-white/5 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded uppercase italic">{match.group_name || match.sub_phase}</span>
           {isPending && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1 italic"><Lock className="w-2 h-2" /> View Only</span>}
         </div>
-        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10 mr-12">{match.channel}</span>
+        <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10 mr-12 md:mr-0">{match.channel}</span>
       </div>
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
