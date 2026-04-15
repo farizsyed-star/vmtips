@@ -123,4 +123,102 @@ function MatchCard({ match, userId }: any) {
   const date = new Date(match.kickoff_time);
 
   const savePrediction = async () => {
-    if (h === "" || a ===
+    if (h === "" || a === "") return;
+    const { error } = await supabase.from("predictions").upsert({ user_id: userId, match_id: match.id, pred_home: parseInt(h), pred_away: parseInt(a) }, { onConflict: 'user_id,match_id' });
+    if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2000); }
+  };
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 transition hover:border-emerald-500/20">
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-[10px] font-bold text-slate-500 uppercase">{date.toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+        <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">{match.channel || "TBA"}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="flex-1 text-right font-bold text-lg uppercase">{match.home_team}</span>
+        <div className="flex gap-2">
+          <input type="number" value={h} onChange={(e) => setH(e.target.value)} onBlur={savePrediction} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-bold text-white focus:border-emerald-400 focus:outline-none" placeholder="-" />
+          <input type="number" value={a} onChange={(e) => setA(e.target.value)} onBlur={savePrediction} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-bold text-white focus:border-emerald-400 focus:outline-none" placeholder="-" />
+        </div>
+        <span className="flex-1 text-left font-bold text-lg uppercase">{match.away_team}</span>
+      </div>
+      {saved && <div className="mt-2 text-center text-[10px] text-emerald-400 font-bold flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3" /> SPARAT</div>}
+    </div>
+  );
+}
+
+function AdminPanel({ matches }: any) {
+  return (
+    <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
+      <h2 className="text-amber-400 font-bold text-xl mb-4 flex items-center gap-2 uppercase italic"><Shield className="w-5 h-5" /> Admin</h2>
+      <div className="space-y-4">
+        {matches.map((m: any) => (
+          <div key={m.id} className="flex items-center justify-between bg-black/20 p-4 rounded-xl border border-white/5">
+            <span className="text-xs font-bold uppercase">{m.home_team} - {m.away_team}</span>
+            <button className="bg-emerald-500 text-black text-[10px] font-bold px-4 py-2 rounded-lg uppercase">Settle</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AuthScreen() {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const handleLogin = async (e: any) => {
+    e.preventDefault();
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    if (!error) setSent(true);
+    else alert("Ett fel uppstod. Kolla att mejladressen stämmer.");
+  };
+
+  return (
+    <div className="min-h-screen bg-[#07090d] grid place-items-center text-center p-4">
+      <div>
+        <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
+        <h1 className="text-5xl font-bold text-white mb-2 tracking-tighter uppercase italic">VM-Tips <span className="text-emerald-400">2026</span></h1>
+        
+        {sent ? (
+          <div className="mt-8 bg-white/5 border border-emerald-500/30 p-6 rounded-2xl">
+            <h2 className="text-emerald-400 font-bold mb-2 uppercase tracking-widest">Kolla din mejl!</h2>
+            <p className="text-slate-400 text-sm">Vi har skickat en inloggningslänk till {email}</p>
+          </div>
+        ) : (
+          <form onSubmit={handleLogin} className="mt-8 flex flex-col gap-4 max-w-sm mx-auto">
+            <input 
+              type="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              placeholder="Din e-postadress" 
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-center focus:border-emerald-400 font-bold outline-none"
+              required
+            />
+            <button type="submit" className="bg-emerald-500 text-black px-10 py-4 rounded-xl font-bold uppercase tracking-widest text-xs">
+              Logga in
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UsernameSetup({ userId, onComplete }: any) {
+  const [name, setName] = useState("");
+  const save = async () => {
+    if (name.length < 3) return alert("Minst 3 tecken!");
+    const { error } = await supabase.from("profiles").upsert({ id: userId, username: name });
+    if (!error) onComplete();
+  };
+  return (
+    <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
+      <div className="max-w-sm w-full text-center">
+        <h2 className="text-2xl font-bold text-white mb-6 uppercase italic">Ditt spelarnamn</h2>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white mb-6 text-center focus:border-emerald-400 font-bold outline-none" placeholder="Zlatan" />
+        <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-bold uppercase tracking-widest italic">Starta</button>
+      </div>
+    </div>
+  );
+}
