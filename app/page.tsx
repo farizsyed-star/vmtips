@@ -35,7 +35,6 @@ export default function WorldCupApp() {
     };
     getSession();
 
-    // Lyssna på inloggningsändringar (t.ex. när man klickar på länken i mejlet)
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         setUser(session.user);
@@ -59,9 +58,17 @@ export default function WorldCupApp() {
     fetchMatches();
   }, []);
 
-  if (loading) return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-bold uppercase tracking-widest">Laddar...</div>;
-  if (!user) return <AuthScreen />;
-  if (!profile?.username) return <UsernameSetup userId={user.id} onComplete={() => window.location.reload()} />;
+  if (loading) {
+    return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-bold uppercase tracking-widest">Laddar...</div>;
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  if (!profile?.username) {
+    return <UsernameSetup userId={user.id} onComplete={() => window.location.reload()} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#07090d] text-slate-200 font-sans pb-20">
@@ -75,10 +82,45 @@ export default function WorldCupApp() {
             <p className="text-[10px] text-slate-500 uppercase tracking-widest leading-none">Poäng</p>
             <p className="text-amber-400 font-bold text-lg leading-none">{profile?.total_points || 0}</p>
           </div>
-          {user?.email === ADMIN_EMAIL && <Settings onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
+          {user?.email === ADMIN_EMAIL && (
+            <Settings onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />
+          )}
           <LogOut onClick={() => supabase.auth.signOut()} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
         </div>
       </header>
 
       <nav className="max-w-5xl mx-auto px-4 mt-6 flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
-        <button onClick={() => setView("matches")} className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition ${view === "matches" ? "bg-emerald-500 text-black" : "text-slate
+        <button onClick={() => setView("matches")} className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition ${view === "matches" ? "bg-emerald-500 text-black" : "text-slate-400"}`}>Matcher</button>
+        <button onClick={() => setView("leaderboard")} className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition ${view === "leaderboard" ? "bg-emerald-500 text-black" : "text-slate-400"}`}>Tabell</button>
+      </nav>
+
+      <main className="max-w-4xl mx-auto px-4 mt-8">
+        {view === "matches" ? (
+          <>
+            <div className="flex gap-6 mb-8 border-b border-white/5 overflow-x-auto">
+              {[1, 2, 3].map(n => (
+                <button key={n} onClick={() => setTab(n)} className={`pb-3 text-[10px] font-bold uppercase tracking-widest transition ${tab === n ? "border-b-2 border-emerald-400 text-white" : "text-slate-500"}`}>Phase {n}</button>
+              ))}
+            </div>
+            <div className="grid gap-4">
+              {matches.filter((m: any) => m.phase === tab).map((m: any) => <MatchCard key={m.id} match={m} userId={user.id} />)}
+            </div>
+          </>
+        ) : view === "admin" ? (
+          <AdminPanel matches={matches} />
+        ) : (
+          <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest">Kommer snart!</div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function MatchCard({ match, userId }: any) {
+  const [h, setH] = useState("");
+  const [a, setA] = useState("");
+  const [saved, setSaved] = useState(false);
+  const date = new Date(match.kickoff_time);
+
+  const savePrediction = async () => {
+    if (h === "" || a ===
