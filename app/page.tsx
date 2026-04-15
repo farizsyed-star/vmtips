@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target, CheckCircle, X } from "lucide-react";
+import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target, CheckCircle, X, Info } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
@@ -20,10 +20,21 @@ const TEAM_ABBREVIATIONS: Record<string, string> = {
   "venezuela": "VEN", "morocco": "MAR", "senegal": "SEN", "nigeria": "NGA", "egypt": "EGY",
   "ghana": "GHA", "cameroon": "CMR", "algeria": "ALG", "tunisia": "TUN", "ivory coast": "CIV",
   "south africa": "RSA", "japan": "JPN", "south korea": "KOR", "australia": "AUS",
-  "saudi arabia": "KSA", "iran": "IRN", "qatar": "QAT"
+  "saudi arabia": "KSA", "iran": "IRN", "qatar": "QAT", "costa rica": "CRC", "iceland": "ISL", 
+  "iraq": "IRQ", "new zealand": "NZL", "panama": "PAN"
 };
 
-const COUNTRIES = Object.values(TEAM_ABBREVIATIONS).filter((v, i, a) => a.indexOf(v) === i).sort();
+// Full country names for the dropdown
+const FULL_COUNTRIES = [
+  "Algeria", "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Cameroon",
+  "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czech Republic", "Denmark",
+  "Ecuador", "Egypt", "England", "France", "Germany", "Ghana", "Greece", "Hungary",
+  "Iceland", "Iran", "Iraq", "Italy", "Ivory Coast", "Japan", "Mexico", "Morocco",
+  "Netherlands", "New Zealand", "Nigeria", "Norway", "Panama", "Paraguay", "Peru",
+  "Poland", "Portugal", "Qatar", "Saudi Arabia", "Scotland", "Senegal", "Serbia",
+  "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Tunisia", "Turkey",
+  "USA", "Ukraine", "Uruguay", "Venezuela", "Wales"
+].sort();
 
 const getTeamLabel = (team: any): string => {
   if (!team || typeof team !== 'string') return "TBD";
@@ -48,7 +59,8 @@ const getFlag = (team: any) => {
     "uruguay": "uy", "colombia": "co", "chile": "cl", "ecuador": "ec", "peru": "pe", "paraguay": "py",
     "venezuela": "ve", "morocco": "ma", "senegal": "sn", "nigeria": "ng", "egypt": "eg", "ghana": "gh",
     "cameroon": "cm", "algeria": "dz", "tunisia": "tn", "ivory coast": "ci", "south africa": "za",
-    "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa"
+    "japan": "jp", "south korea": "kr", "australia": "au", "saudi arabia": "sa", "iran": "ir", "qatar": "qa",
+    "costa rica": "cr", "iceland": "is", "iraq": "iq", "new zealand": "nz", "panama": "pa"
   };
   const code = map[name];
   return code ? `https://flagcdn.com/w40/${code}.png` : null;
@@ -138,6 +150,13 @@ export default function WorldCupApp() {
     });
   }, []);
 
+  const handleLogout = async () => {
+    setUser(null);
+    setProfile(null);
+    setView("loading");
+    await supabase.auth.signOut();
+  };
+
   if (loading || view === "loading") return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase italic tracking-widest animate-pulse">Loading World Cup...</div>;
   if (!user) return <AuthScreen />;
   if (!profile?.username) return <UsernameSetup userId={user.id} onComplete={() => { setShowWelcome(true); fetchProfile(user.id); }} />;
@@ -162,14 +181,14 @@ export default function WorldCupApp() {
               <p className="text-amber-400 font-black text-xl leading-none">{profile?.total_points || 0}</p>
             </div>
             {user?.email === ADMIN_EMAIL && <Shield onClick={() => setView("admin")} className="cursor-pointer hover:text-amber-400 w-5 h-5" />}
-            <LogOut onClick={async () => { await supabase.auth.signOut(); setView("loading"); }} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
+            <LogOut onClick={handleLogout} className="cursor-pointer hover:text-white w-5 h-5 text-slate-500" />
           </div>
         </header>
 
-        <nav className="max-w-5xl mx-auto px-4 pb-4 flex gap-1 overflow-x-auto scrollbar-hide">
+        <nav className="max-w-[1400px] mx-auto px-4 pb-4 flex gap-1 overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => bonusCompleted && setView("matches")} 
-            className={`flex-1 min-w-[110px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
+            className={`flex-1 md:flex-none md:w-32 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
           >
             {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
           </button>
@@ -573,7 +592,7 @@ function AdminPanel({ matches }: any) {
 
 function NavBtn({ active, onClick, label }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 min-w-[90px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+    <button onClick={onClick} className={`flex-1 md:w-32 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
       {label}
     </button>
   );
@@ -589,14 +608,38 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
           <span className="text-emerald-400">World Cup '26</span><br/>
           <span className="text-xl tracking-widest text-slate-300 mt-2 block">Couch Potato Edition</span>
         </h2>
-        <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-4">
-          <p>Predict match scores and nail your tournament bonuses to win. Correct scores earn the most points, so choose wisely!</p>
-          <div className="bg-emerald-500/10 text-emerald-400 font-bold p-4 rounded-2xl border border-emerald-500/20 text-xs uppercase tracking-tight">
-            ⚠️ FIRST STEP: You must complete your <span className="underline italic">Bonus Predictions</span>. The Matches tab will unlock once you save them!
-          </div>
+        <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-6 text-left">
+          <p className="font-bold text-center">Here is how the prediction league works:</p>
+          <ul className="list-disc pl-5 space-y-2 text-xs">
+            <li><strong className="text-white">Bonus (Locks June 11):</strong> Predict tournament stats. <span className="text-emerald-400">Must be completed first!</span></li>
+            <li><strong className="text-white">Group Stage (Locks June 11):</strong> Predict exact scores for all group matches.</li>
+            <li><strong className="text-white">Knockouts (Locks per round):</strong> Predict scores and penalty winners. Locks when the first game of that round starts.</li>
+          </ul>
+          <p className="text-xs italic text-center mt-4">Check out the <strong className="text-white">Rules</strong> tab for the full scoring system.</p>
         </div>
         <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all shadow-md">Let's Get Started</button>
       </div>
+    </div>
+  );
+}
+
+// Side Leaderboard Component
+function MiniLeaderboard() {
+  const [list, setList] = useState([]);
+  useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).limit(5).then(({ data }) => setList(data as any || [])); }, []);
+  return (
+    <div className="space-y-3">
+      {list.length === 0 && <p className="text-[10px] text-slate-500 uppercase tracking-widest italic text-center py-4">No points yet</p>}
+      {list.map((p: any, i) => (
+        <div key={p.id} className="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 last:pb-0">
+          <div className="flex items-center gap-3">
+            <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-slate-400 text-black" : i === 2 ? "bg-orange-800 text-black" : "text-slate-500 bg-white/5"}`}>{i + 1}</span>
+            <span className="text-[11px] font-bold text-white uppercase truncate max-w-[80px]">{p.username}</span>
+          </div>
+          <span className="text-sm font-black text-emerald-400 tabular-nums">{p.total_points}</span>
+        </div>
+      ))}
+      <button onClick={() => window.scrollTo(0,0)} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">See Full Standings</button>
     </div>
   );
 }
@@ -649,28 +692,51 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals", "Results"];
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="flex gap-4 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
-          <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
-          <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
-          <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
-          <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
-          <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
-          <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+      
+      {/* LEFT SIDEBAR: Instructions (Hidden on Mobile) */}
+      <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
+        <h3 className="text-emerald-400 font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-xs"><Info className="w-4 h-4"/> How to Play</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed mb-4">Enter your predicted final scoreline for each match. If a knockout match ends in a draw, you must also select the penalty winner.</p>
+        <p className="text-[11px] text-slate-400 leading-relaxed mb-6">Auto-save is enabled. Look for the <CheckCircle className="inline w-3 h-3 text-emerald-400 mx-1"/> to ensure your prediction is logged securely.</p>
+        
+        <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl">
+          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Goal className="w-3 h-3"/> Scoring Tip</p>
+          <p className="text-[10px] text-slate-400 leading-relaxed">Exact scores give maximum points. Correct winner outcomes give partial points. Unsaved predictions score 0.</p>
         </div>
       </div>
 
-      {tab !== 6 && <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />}
-      
-      <div className="grid gap-4">
-        {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
-        {filtered.length === 0 && (
-          <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">
-             {tab === 6 ? "No matches have finished yet." : !isPending ? "No matches remaining in this round." : "Waiting for previous round..."}
+      {/* CENTER: Main Matches Content */}
+      <div className="col-span-1 lg:col-span-2">
+        <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide w-full">
+            <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
+            <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
+            <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
+            <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
+            <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
+            <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
           </div>
-        )}
+        </div>
+
+        {tab !== 6 && <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />}
+        
+        <div className="grid gap-4">
+          {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
+          {filtered.length === 0 && (
+            <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">
+               {tab === 6 ? "No matches have finished yet." : !isPending ? "No matches remaining in this round." : "Waiting for previous round..."}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* RIGHT SIDEBAR: Top 5 Leaderboard (Hidden on Mobile) */}
+      <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
+        <h3 className="text-amber-400 font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-xs"><Trophy className="w-4 h-4"/> Top 5 Leaders</h3>
+        <MiniLeaderboard />
+      </div>
+
     </div>
   );
 }
@@ -778,7 +844,7 @@ function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isComplet
   };
   if (loading) return null;
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-3xl mx-auto">
       <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Predictions Lock In" />
       <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12">
         <div className="flex justify-between items-start mb-2 border-b border-white/5 pb-4">
@@ -793,7 +859,7 @@ function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isComplet
             <div className="flex justify-between items-center mb-3 ml-1"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Card Magnets: Which team will collect the most cards?</p><span className="text-[10px] font-black text-emerald-400">5 points</span></div>
             <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold disabled:opacity-50">
               <option value="">Select Country</option>
-              {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {FULL_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <BonusField label="Tournament MVP: Who will be crowned player of the tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
@@ -918,7 +984,7 @@ function AuthScreen() {
     <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
       <div className="w-full max-w-sm text-center">
         <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-        <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic leading-none drop-shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+        <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic leading-none shadow-emerald-500/10">
           World Cup '26<br/>
           <span className="text-emerald-400 text-2xl tracking-widest block mt-2">Couch Potato Edition</span>
         </h1>
