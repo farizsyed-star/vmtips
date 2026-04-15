@@ -185,7 +185,7 @@ export default function WorldCupApp() {
           </div>
         </header>
 
-        <nav className="max-w-[1400px] mx-auto px-4 pb-4 flex gap-1 md:gap-2 overflow-x-auto scrollbar-hide">
+        <nav className="max-w-[1400px] mx-auto px-4 pb-4 flex gap-1 md:gap-2 md:justify-center overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => bonusCompleted && setView("matches")} 
             className={`flex-1 md:flex-none md:w-28 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
@@ -716,7 +716,7 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals", "Results"];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 items-start">
       
       {/* LEFT SIDEBAR: Instructions (per tab) */}
       <div className="hidden lg:block sticky top-[100px]">
@@ -724,14 +724,14 @@ function MatchList({ matches, tab, setTab, userId }: any) {
       </div>
 
       {/* CENTER: Main Matches Content */}
-      <div className="col-span-1 lg:col-span-2">
+      <div className="col-span-1 lg:col-span-4">
         <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide w-full justify-between">
-            <PhaseTab id={1} label="Group" active={tab === 1} onClick={setTab} />
-            <PhaseTab id={2} label="R32" active={tab === 2} onClick={setTab} />
-            <PhaseTab id={3} label="R16" active={tab === 3} onClick={setTab} />
-            <PhaseTab id={4} label="QF & SF" active={tab === 4} onClick={setTab} />
-            <PhaseTab id={5} label="Finals" active={tab === 5} onClick={setTab} />
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide w-full justify-between">
+            <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
+            <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
+            <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
+            <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
+            <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
             <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
           </div>
         </div>
