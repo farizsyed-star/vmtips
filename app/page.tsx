@@ -144,7 +144,7 @@ function AuthScreen() {
     <div className="min-h-screen bg-[#07090d] grid place-items-center text-center p-4">
       <div>
         <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-        <h1 className="text-5xl font-bold text-white mb-2 tracking-tighter uppercase italic text-shadow-lg">VM-Tips <span className="text-emerald-400">2026</span></h1>
+        <h1 className="text-5xl font-bold text-white mb-2 tracking-tighter uppercase italic">VM-Tips <span className="text-emerald-400">2026</span></h1>
         <button onClick={handleLogin} className="bg-white text-black px-10 py-4 rounded-2xl font-bold hover:bg-slate-200 transition uppercase tracking-widest text-xs mt-8">Logga in med Google</button>
       </div>
     </div>
