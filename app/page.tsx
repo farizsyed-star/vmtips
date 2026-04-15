@@ -71,7 +71,6 @@ export default function WorldCupApp() {
   };
 
   const checkBonusStatus = async (id: string) => {
-    // using maybeSingle prevents crashing if 0 rows are found
     const { data } = await supabase.from("bonus_predictions").select("user_id").eq("user_id", id).maybeSingle();
     if (data) {
       setBonusCompleted(true);
@@ -83,7 +82,7 @@ export default function WorldCupApp() {
   };
 
   useEffect(() => {
-    // 1. Initial Session Check
+    // Initial Session Check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUser(session.user);
@@ -92,11 +91,11 @@ export default function WorldCupApp() {
       } else {
         setUser(null);
         setLoading(false);
-        setView("matches"); // Breaks the loading state trap
+        setView("matches");
       }
     });
 
-    // 2. Real-time Auth Listener (Fixes the Logout bug)
+    // Real-time Auth Listener
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setUser(session.user);
@@ -113,7 +112,7 @@ export default function WorldCupApp() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  // Auto-route matches tab based on current tournament date
+  // Auto-route matches tab
   useEffect(() => {
     supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => {
       const fetchedMatches = data || [];
@@ -139,7 +138,6 @@ export default function WorldCupApp() {
     });
   }, []);
 
-  // Failsafe rendering sequence
   if (loading || view === "loading") return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase italic tracking-widest animate-pulse">Loading World Cup...</div>;
   if (!user) return <AuthScreen />;
   if (!profile?.username) return <UsernameSetup userId={user.id} onComplete={() => { setShowWelcome(true); fetchProfile(user.id); }} />;
@@ -150,10 +148,13 @@ export default function WorldCupApp() {
       
       {/* LOCKED HEADER & NAVIGATION */}
       <div className="sticky top-0 z-50 bg-[#07090d]/95 backdrop-blur-xl border-b border-white/5">
-        <header className="max-w-[1400px] mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy className="text-emerald-500 w-5 h-5" />
-            <h1 className="font-black text-xl text-white uppercase italic tracking-tighter">World Cup <span className="text-emerald-400">2026</span></h1>
+        <header className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Trophy className="text-emerald-500 w-6 h-6" />
+            <h1 className="font-black text-xl text-white uppercase italic tracking-tighter leading-none">
+              World Cup '26<br/>
+              <span className="text-emerald-400 text-[10px] tracking-widest block mt-0.5">Couch Potato Edition</span>
+            </h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -203,7 +204,7 @@ function StatsPage({ matches }: { matches: any[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-28 z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+      <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
           <button onClick={() => setSubTab(1)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
           <button onClick={() => setSubTab(2)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
@@ -294,7 +295,6 @@ function StandingsTable({ matches }: { matches: any[] }) {
   );
 }
 
-// Compact Bracket Match Box with Date/Time INSIDE
 const BracketMatch = ({ match }: { match?: any }) => {
   const kickoffDate = match?.kickoff_time ? new Date(match.kickoff_time) : null;
   const timeStr = kickoffDate ? kickoffDate.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) : "--:--";
@@ -445,7 +445,6 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
         <div className="flex w-[130px] flex-col">
           {["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"].map(id => <MatchWrapper key={id} height={H}><BracketMatch match={matchMap[id]} /></MatchWrapper>)}
         </div>
-
       </div>
     </div>
   );
@@ -585,8 +584,12 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl grid place-items-center p-6">
       <div className="bg-[#0f1117] border border-white/10 rounded-[2.5rem] p-10 max-w-md w-full relative shadow-2xl text-center">
         <Sparkles className="text-amber-400 w-12 h-12 mb-6 mx-auto animate-pulse" />
-        <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none">Welcome to the <br/><span className="text-emerald-400">Cup League</span></h2>
-        <div className="space-y-4 text-slate-400 text-sm leading-relaxed">
+        <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none">
+          Welcome to <br/>
+          <span className="text-emerald-400">World Cup '26</span><br/>
+          <span className="text-xl tracking-widest text-slate-300 mt-2 block">Couch Potato Edition</span>
+        </h2>
+        <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-4">
           <p>Predict match scores and nail your tournament bonuses to win. Correct scores earn the most points, so choose wisely!</p>
           <div className="bg-emerald-500/10 text-emerald-400 font-bold p-4 rounded-2xl border border-emerald-500/20 text-xs uppercase tracking-tight">
             ⚠️ FIRST STEP: You must complete your <span className="underline italic">Bonus Predictions</span>. The Matches tab will unlock once you save them!
@@ -647,7 +650,7 @@ function MatchList({ matches, tab, setTab, userId }: any) {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="sticky top-28 z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
+      <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 border-b border-white/5 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex gap-4 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
           <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
           <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
@@ -915,7 +918,10 @@ function AuthScreen() {
     <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
       <div className="w-full max-w-sm text-center">
         <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-        <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic leading-none shadow-emerald-500/10">World Cup <span className="text-emerald-400">2026</span></h1>
+        <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic leading-none drop-shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+          World Cup '26<br/>
+          <span className="text-emerald-400 text-2xl tracking-widest block mt-2">Couch Potato Edition</span>
+        </h1>
         <form onSubmit={handle} className="mt-8 space-y-3">
           <input type="email" placeholder="Email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold focus:bg-emerald-500/5 shadow-inner" onChange={(e) => setForm({...form, e: e.target.value})} />
           <input type="password" placeholder="Password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold focus:bg-emerald-500/5 shadow-inner" onChange={(e) => setForm({...form, p: e.target.value})} />
