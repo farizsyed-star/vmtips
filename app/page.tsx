@@ -35,10 +35,10 @@ export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("bonus"); 
+  const [view, setView] = useState("loading"); 
   const [bonusCompleted, setBonusCompleted] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [matches, setMatches] = useState([]);
+  const [matches, setMatches] = useState<any[]>([]);
   const [tab, setTab] = useState(1);
 
   useEffect(() => {
@@ -47,8 +47,9 @@ export default function WorldCupApp() {
         setUser(session.user);
         fetchProfile(session.user.id);
         checkBonusStatus(session.user.id);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
   }, []);
 
@@ -59,14 +60,38 @@ export default function WorldCupApp() {
 
   const checkBonusStatus = async (id: string) => {
     const { data } = await supabase.from("bonus_predictions").select("user_id").eq("user_id", id).single();
-    if (data) setBonusCompleted(true);
+    if (data) {
+      setBonusCompleted(true);
+      setView("matches");
+    } else {
+      setView("bonus");
+    }
   };
 
+  // Fetch matches and auto-set the correct active tab based on dates
   useEffect(() => {
-    supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => setMatches(data as any || []));
-  }, [view]);
+    supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => {
+      const fetchedMatches = data || [];
+      setMatches(fetchedMatches);
+      setLoading(false);
 
-  if (loading) return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase italic tracking-widest animate-pulse">Loading World Cup...</div>;
+      if (fetchedMatches.length > 0) {
+        const now = new Date();
+        const groupEnd = new Date(fetchedMatches.filter((m: any) => m.sub_phase === 'group').slice(-1)[0]?.kickoff_time || 0);
+        const r32End = new Date(fetchedMatches.filter((m: any) => m.sub_phase === 'r32').slice(-1)[0]?.kickoff_time || 0);
+        const r16End = new Date(fetchedMatches.filter((m: any) => m.sub_phase === 'r16').slice(-1)[0]?.kickoff_time || 0);
+        const semiEnd = new Date(fetchedMatches.filter((m: any) => m.sub_phase === 'semi').slice(-1)[0]?.kickoff_time || 0);
+
+        if (now > semiEnd) setTab(5);
+        else if (now > r16End) setTab(4);
+        else if (now > r32End) setTab(3);
+        else if (now > groupEnd) setTab(2);
+        else setTab(1);
+      }
+    });
+  }, []);
+
+  if (loading || view === "loading") return <div className="min-h-screen bg-[#07090d] grid place-items-center text-emerald-400 font-black uppercase italic tracking-widest animate-pulse">Loading World Cup...</div>;
   if (!user) return <AuthScreen />;
   if (!profile?.username) return <UsernameSetup userId={user.id} onComplete={() => { setShowWelcome(true); fetchProfile(user.id); }} />;
 
@@ -104,7 +129,7 @@ export default function WorldCupApp() {
 
       <main className="max-w-6xl mx-auto px-4 mt-8">
         {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} />}
-        {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => setBonusCompleted(true)} />}
+        {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => { setBonusCompleted(true); setView("matches"); }} />}
         {view === "stats" && <StatsPage matches={matches} />}
         {view === "leaderboard" && <Leaderboard />}
         {view === "rules" && <RulesPage />}
@@ -126,9 +151,9 @@ function StatsPage({ matches }: { matches: any[] }) {
   return (
     <div className="space-y-8">
       <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide">
-        <button onClick={() => setSubTab(1)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
-        <button onClick={() => setSubTab(2)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
-        <button onClick={() => setSubTab(3)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
+        <button onClick={() => setSubTab(1)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
+        <button onClick={() => setSubTab(2)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
+        <button onClick={() => setSubTab(3)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
       </div>
 
       {subTab === 1 && <StandingsTable matches={matches} />}
@@ -166,36 +191,54 @@ function StandingsTable({ matches }: { matches: any[] }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {groups.map(g => (
-        <div key={g} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-          <div className="bg-emerald-500/10 px-4 py-2 border-b border-white/5">
-            <span className="text-[10px] font-black uppercase text-emerald-400 italic">{g}</span>
+      {groups.map(g => {
+        const teams = calculateGroup(g);
+        if (teams.length === 0) return null; // Skip empty groups
+        return (
+          <div key={g} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+            <div className="bg-emerald-500/10 px-4 py-3 border-b border-white/5">
+              <span className="text-[12px] font-black uppercase text-emerald-400 italic tracking-widest">{g}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[11px]">
+                <thead>
+                  <tr className="text-slate-500 border-b border-white/5 uppercase">
+                    <th className="px-4 py-3 w-8 text-center font-bold">#</th>
+                    <th className="py-3 font-bold min-w-[120px]">Team</th>
+                    <th className="py-3 text-center w-8 font-bold">P</th>
+                    <th className="py-3 text-center w-8 font-bold">W</th>
+                    <th className="py-3 text-center w-8 font-bold">D</th>
+                    <th className="py-3 text-center w-8 font-bold">L</th>
+                    <th className="py-3 text-center w-8 font-bold">GF</th>
+                    <th className="py-3 text-center w-8 font-bold">GA</th>
+                    <th className="py-3 text-center w-8 font-bold">GD</th>
+                    <th className="py-3 px-4 text-center w-10 font-black text-emerald-400">Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teams.map((t: any, i) => (
+                    <tr key={t.name} className={`border-b border-white/5 last:border-0 ${i < 2 ? "bg-emerald-500/5" : ""}`}>
+                      <td className="px-4 py-3 text-center font-black text-slate-600">{i + 1}</td>
+                      <td className="py-3 flex items-center gap-2">
+                        <img src={getFlag(t.name) || ""} className="w-5 h-3 object-cover rounded-sm shadow-sm" alt="" />
+                        <span className="font-bold text-white uppercase tracking-tight">{t.name}</span>
+                      </td>
+                      <td className="text-center font-bold text-slate-400">{t.p}</td>
+                      <td className="text-center font-bold text-slate-400">{t.w}</td>
+                      <td className="text-center font-bold text-slate-400">{t.d}</td>
+                      <td className="text-center font-bold text-slate-400">{t.l}</td>
+                      <td className="text-center font-bold text-slate-400">{t.gf}</td>
+                      <td className="text-center font-bold text-slate-400">{t.ga}</td>
+                      <td className="text-center font-bold text-slate-400">{t.gd > 0 ? `+${t.gd}` : t.gd}</td>
+                      <td className="text-center px-4 font-black text-emerald-400 text-sm">{t.pts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <table className="w-full text-left text-[10px]">
-            <thead>
-              <tr className="text-slate-500 border-b border-white/5 uppercase">
-                <th className="px-4 py-2">Team</th>
-                <th className="py-2 text-center">P</th>
-                <th className="py-2 text-center">GD</th>
-                <th className="py-2 text-center">Pts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {calculateGroup(g).map((t: any, i) => (
-                <tr key={t.name} className={`border-b border-white/5 last:border-0 ${i < 2 ? "bg-emerald-500/5" : ""}`}>
-                  <td className="px-4 py-3 flex items-center gap-2">
-                    <img src={getFlag(t.name) || ""} className="w-4 h-2.5 object-cover rounded-sm" alt="" />
-                    <span className="font-bold text-white uppercase">{t.name}</span>
-                  </td>
-                  <td className="text-center font-bold text-slate-400">{t.p}</td>
-                  <td className="text-center font-bold text-slate-400">{t.gd > 0 ? `+${t.gd}` : t.gd}</td>
-                  <td className="text-center font-black text-emerald-400">{t.pts}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -203,6 +246,7 @@ function StandingsTable({ matches }: { matches: any[] }) {
 function KnockoutBracket({ matches }: { matches: any[] }) {
   const renderMatch = (subPhase: string, title: string) => {
     const mList = matches.filter(m => m.sub_phase === subPhase);
+    if(mList.length === 0) return null;
     return (
       <div className="space-y-4">
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center mb-4">{title}</p>
@@ -210,13 +254,15 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
           <div key={m.id} className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-2 min-w-[180px]">
             <div className="flex justify-between items-center">
               <span className={`text-[10px] font-bold uppercase flex items-center gap-2 ${m.settled && m.home_score > m.away_score ? "text-emerald-400" : "text-slate-400"}`}>
-                <img src={getFlag(m.home_team) || ""} className="w-3 h-2" alt="" /> {m.home_team}
+                {getFlag(m.home_team) ? <img src={getFlag(m.home_team)!} className="w-3 h-2" alt="" /> : <Users className="w-3 h-2" />} 
+                <span className="truncate max-w-[100px]">{m.home_team}</span>
               </span>
               <span className="font-black text-white">{m.settled ? m.home_score : "-"}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className={`text-[10px] font-bold uppercase flex items-center gap-2 ${m.settled && m.away_score > m.home_score ? "text-emerald-400" : "text-slate-400"}`}>
-                <img src={getFlag(m.away_team) || ""} className="w-3 h-2" alt="" /> {m.away_team}
+                {getFlag(m.away_team) ? <img src={getFlag(m.away_team)!} className="w-3 h-2" alt="" /> : <Users className="w-3 h-2" />} 
+                <span className="truncate max-w-[100px]">{m.away_team}</span>
               </span>
               <span className="font-black text-white">{m.settled ? m.away_score : "-"}</span>
             </div>
@@ -229,12 +275,13 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-3xl p-8 overflow-x-auto">
       <div className="flex gap-12 min-w-[1000px] justify-between items-start">
+        {renderMatch('r32', 'Round of 32')}
         {renderMatch('r16', 'Round of 16')}
         {renderMatch('quarter', 'Quarter Finals')}
         {renderMatch('semi', 'Semi Finals')}
         <div className="space-y-12">
-          {renderMatch('bronze', '3rd Place')}
-          {renderMatch('final', 'The Final')}
+          {renderMatch('bronze', 'Bronze Final')}
+          {renderMatch('final', 'Gold Final')}
         </div>
       </div>
     </div>
@@ -251,6 +298,7 @@ function TopPerformers({ players }: { players: any[] }) {
         <h3 className="p-6 text-xl font-black text-emerald-400 uppercase italic flex items-center gap-3">
           <Goal className="w-6 h-6" /> Golden Boot
         </h3>
+        {scorers.length === 0 && <p className="text-center p-8 text-xs font-bold text-slate-500 uppercase tracking-widest">No stats yet.</p>}
         {scorers.map((p, i) => (
           <div key={p.id} className="px-6 py-4 flex justify-between items-center border-t border-white/5">
             <div className="flex items-center gap-4">
@@ -269,6 +317,7 @@ function TopPerformers({ players }: { players: any[] }) {
         <h3 className="p-6 text-xl font-black text-amber-400 uppercase italic flex items-center gap-3">
           <Star className="w-6 h-6" /> Assist Kings
         </h3>
+        {assisters.length === 0 && <p className="text-center p-8 text-xs font-bold text-slate-500 uppercase tracking-widest">No stats yet.</p>}
         {assisters.map((p, i) => (
           <div key={p.id} className="px-6 py-4 flex justify-between items-center border-t border-white/5">
             <div className="flex items-center gap-4">
@@ -286,7 +335,7 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- ADMIN PANEL ADDITIONS ---
+// --- ADMIN PANEL ---
 function AdminPanel({ matches }: any) {
   const [scores, setScores] = useState<any>({});
   const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
@@ -329,8 +378,15 @@ function AdminPanel({ matches }: any) {
             <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center">
               <span className="text-[10px] font-black uppercase tracking-tight">{m.home_team} vs {m.away_team} ({m.sub_phase})</span>
               <div className="flex gap-2">
-                <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
-                <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
+                <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
+                <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
+                {m.phase > 1 && (
+                  <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
+                    <option value="">PW?</option>
+                    <option value="home">Home</option>
+                    <option value="away">Away</option>
+                  </select>
+                )}
                 <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1 rounded font-black uppercase text-[9px]">Settle</button>
               </div>
             </div>
@@ -341,10 +397,10 @@ function AdminPanel({ matches }: any) {
       <div className="bg-emerald-400/5 border border-emerald-400/20 rounded-2xl p-6">
         <h2 className="text-emerald-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2"><Users className="w-5 h-5" /> Admin: Player Stats</h2>
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <input type="text" placeholder="Player Name" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm" onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})} />
-          <input type="text" placeholder="Team" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm" onChange={(e) => setNewPlayer({...newPlayer, team: e.target.value})} />
-          <input type="number" placeholder="Goals" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm" onChange={(e) => setNewPlayer({...newPlayer, goals: parseInt(e.target.value) || 0})} />
-          <input type="number" placeholder="Assists" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm" onChange={(e) => setNewPlayer({...newPlayer, assists: parseInt(e.target.value) || 0})} />
+          <input type="text" placeholder="Player Name" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white" onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})} />
+          <input type="text" placeholder="Team" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white" onChange={(e) => setNewPlayer({...newPlayer, team: e.target.value})} />
+          <input type="number" placeholder="Goals" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white" onChange={(e) => setNewPlayer({...newPlayer, goals: parseInt(e.target.value) || 0})} />
+          <input type="number" placeholder="Assists" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white" onChange={(e) => setNewPlayer({...newPlayer, assists: parseInt(e.target.value) || 0})} />
         </div>
         <button onClick={addPlayer} className="w-full bg-emerald-500 text-black py-3 rounded-xl font-black uppercase text-xs tracking-widest">Update Player Database</button>
       </div>
@@ -352,11 +408,10 @@ function AdminPanel({ matches }: any) {
   );
 }
 
-// --- REMAINING COMPONENTS ---
-
+// --- REMAINING UTILS (Timer, Leaderboard, Auth, etc.) ---
 function NavBtn({ active, onClick, label }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 min-w-[100px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+    <button onClick={onClick} className={`flex-1 min-w-[90px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
       {label}
     </button>
   );
@@ -483,20 +538,29 @@ function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isComplet
     <div className="space-y-6">
       <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Predictions Lock In" />
       <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12">
-        <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter mb-4">Bonus Predictions</h2>
+        <div className="flex justify-between items-start mb-2">
+          <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter">Bonus Predictions</h2>
+          {isPermanentlyLocked && <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse"><Lock className="w-3 h-3"/> Locked</span>}
+        </div>
         <p className="text-slate-400 text-sm font-bold mb-12 uppercase tracking-widest italic">Put your football brain to the test and predict the following:</p>
         <div className="space-y-10">
-          <BonusField label="Golden Boot: Who will score the most goals?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
+          <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
           <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={isPermanentlyLocked} />
           <div>
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3">Card Magnets: Which team will collect the most cards? (5 pts)</p>
-            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold">
+            <div className="flex justify-between items-center mb-3 ml-1"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Card Magnets: Which team will collect the most cards?</p><span className="text-[10px] font-black text-emerald-400">5 points</span></div>
+            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold disabled:opacity-50">
               <option value="">Select Country</option>
               {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <BonusField label="Tournament MVP: Who will be crowned player of tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
-          <BonusField label="Goal Rush: Total goals scored? (extra time incl, no shootouts)" points="5/10 points" value={form.goals} onChange={(v) => setForm({...form, goals: v})} disabled={isPermanentlyLocked} type="number" />
+          <BonusField label="Tournament MVP: Who will be crowned player of the tournament?" points="5 points" value={form.mvp} onChange={(v) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
+          <div>
+            <div className="flex justify-between items-end mb-3 ml-1">
+              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Goal Rush: How many goals will be scored in total during the tournament? (including extra time, excluding penalty shootouts)</p>
+              <div className="text-right text-[10px] font-black text-emerald-400 leading-tight">Closest guess: 5 points <br/> Exactly right: 10 points</div>
+            </div>
+            <input type="number" value={form.goals} disabled={isPermanentlyLocked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50" />
+          </div>
           {!isPermanentlyLocked && <button onClick={save} className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase mt-6 tracking-[0.2em] shadow-lg">Save & Unlock Matches</button>}
         </div>
       </div>
@@ -511,7 +575,7 @@ function BonusField({ label, points, value, onChange, disabled, type="text" }: a
         <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
         <span className="text-[10px] font-black text-emerald-400">{points}</span>
       </div>
-      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic" />
+      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50" />
     </div>
   );
 }
@@ -539,7 +603,7 @@ function CountdownTimer({ targetDate, label, isPending }: any) {
     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6">
       <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
       {isPending ? (
-        <span className="text-slate-500 font-black uppercase text-xs flex items-center gap-2 tracking-[0.2em]"><Lock className="w-3 h-3" /> Waiting...</span>
+        <span className="text-slate-500 font-black uppercase text-xs flex items-center gap-2 tracking-[0.2em]"><Lock className="w-3 h-3" /> Awaiting Teams</span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm tracking-widest">Locked</span>
       ) : timeLeft ? (
@@ -547,15 +611,6 @@ function CountdownTimer({ targetDate, label, isPending }: any) {
           <TimeBlock unit="Days" val={timeLeft.d} /> <TimeBlock unit="Hours" val={timeLeft.h} /> <TimeBlock unit="Mins" val={timeLeft.m} /> <TimeBlock unit="Secs" val={timeLeft.s} />
         </div>
       ) : <span className="text-slate-600 font-black animate-pulse">...</span>}
-    </div>
-  );
-}
-
-function TimeBlock({ unit, val }: any) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-2xl leading-none tabular-nums tracking-tighter">{val.toString().padStart(2, '0')}</span>
-      <span className="text-[8px] text-slate-500 not-italic uppercase font-bold mt-1 tracking-widest">{unit}</span>
     </div>
   );
 }
