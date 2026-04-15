@@ -31,6 +31,7 @@ const getFlag = (team: string) => {
 
 const COUNTRIES = ["Algeria", "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Cameroon", "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czech Republic", "Denmark", "Ecuador", "Egypt", "England", "France", "Germany", "Ghana", "Greece", "Hungary", "Iceland", "Iran", "Iraq", "Italy", "Ivory Coast", "Japan", "Mexico", "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway", "Panama", "Paraguay", "Peru", "Poland", "Portugal", "Saudi Arabia", "Scotland", "Senegal", "Serbia", "South Korea", "Spain", "Sweden", "Switzerland", "Tunisia", "Turkey", "Ukraine", "Uruguay", "USA", "Wales"].sort();
 
+// --- MAIN APP ---
 export default function WorldCupApp() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -241,35 +242,35 @@ function StandingsTable({ matches }: { matches: any[] }) {
 }
 
 const BracketMatch = ({ match }: { match?: any }) => {
-  if (!match) return <div className="min-w-[180px] h-[78px] text-[10px] text-slate-700 font-bold uppercase tracking-widest flex items-center justify-center italic">Match Not Setup</div>;
+  if (!match) return <div className="min-w-[200px] h-[100px] text-[10px] text-slate-700 font-bold uppercase tracking-widest flex items-center justify-center italic bg-white/5 border border-white/5 rounded-2xl">Match TBD</div>;
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-2 min-w-[180px] group transition-colors hover:border-emerald-500/30">
-      <div className="flex justify-between items-center text-[10px] border-b border-white/5 pb-1 mb-1">
-        <span className="text-[10px] font-black uppercase text-slate-600 bg-white/5 px-2 py-0.5 rounded-md italic">{new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-        <span className="text-[11px] font-black uppercase text-amber-500 bg-amber-500/5 px-2 py-0.5 rounded-full shadow-sm">{match.match_number}</span>
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2 min-w-[200px] hover:border-emerald-500/30 transition-colors group">
+      <div className="flex justify-between items-center text-[10px] border-b border-white/5 pb-2 mb-1">
+        <span className="text-[10px] font-black uppercase text-slate-600 bg-black/40 px-2.5 py-1 rounded-md italic shadow-inner">{new Date(match.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+        <span className="text-[11px] font-black uppercase text-amber-500 bg-amber-500/5 px-2.5 py-1 rounded-full shadow-sm">{match.match_number || '-'}</span>
       </div>
       
       <div className="flex justify-between items-center">
-        <span className={`text-[10px] font-bold uppercase flex items-center gap-2 ${match.settled && match.home_score > match.away_score ? "text-emerald-400" : "text-slate-400"}`}>
-          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-3 h-2" alt="" /> : <Target className="w-3 h-3 text-slate-700" />} 
-          <span className="truncate max-w-[120px]">{match.home_team}</span>
+        <span className={`text-[10px] font-bold uppercase flex items-center gap-2.5 ${match.settled && match.home_score > match.away_score ? "text-emerald-400" : "text-slate-400"}`}>
+          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-4 h-2.5 object-cover rounded-sm shadow-sm" alt="" /> : <Target className="w-4 h-4 text-slate-700" />} 
+          <span className="truncate max-w-[130px]">{match.home_team}</span>
         </span>
-        <span className="font-black text-white text-base">{match.settled ? match.home_score : "-"}</span>
+        <span className="font-black text-white text-lg tracking-tight tabular-nums">{match.settled ? match.home_score : "-"}</span>
       </div>
       <div className="flex justify-between items-center">
-        <span className={`text-[10px] font-bold uppercase flex items-center gap-2 ${match.settled && match.away_score > match.home_score ? "text-emerald-400" : "text-slate-400"}`}>
-          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-3 h-2" alt="" /> : <Target className="w-3 h-3 text-slate-700" />} 
-          <span className="truncate max-w-[120px]">{match.away_team}</span>
+        <span className={`text-[10px] font-bold uppercase flex items-center gap-2.5 ${match.settled && match.away_score > match.home_score ? "text-emerald-400" : "text-slate-400"}`}>
+          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-4 h-2.5 object-cover rounded-sm shadow-sm" alt="" /> : <Target className="w-4 h-4 text-slate-700" />} 
+          <span className="truncate max-w-[130px]">{match.away_team}</span>
         </span>
-        <span className="font-black text-white text-base">{match.settled ? match.away_score : "-"}</span>
+        <span className="font-black text-white text-lg tracking-tight tabular-nums">{match.settled ? match.away_score : "-"}</span>
       </div>
     </div>
   );
 };
 
 function KnockoutBracket({ matches }: { matches: any[] }) {
-  // Map matches to a data object keyed by match number for easy central lookup
+  // Map matches by match number for easy central lookup
   const matchMap = matches.reduce((map, m) => {
     if (m.match_number) map[m.match_number as string] = m;
     return map;
@@ -278,66 +279,66 @@ function KnockoutBracket({ matches }: { matches: any[] }) {
   const roundTitles = ["", "Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final / 3rd Place"];
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-3xl p-8 overflow-x-auto">
-      <div className="flex gap-12 min-w-[1500px] items-center text-center justify-between">
+    <div className="bg-[#07090d] border border-white/5 rounded-3xl p-10 overflow-x-auto shadow-2xl">
+      <div className="flex gap-16 min-w-[1600px] items-center text-center justify-between">
         
         {/* LEFT Bracket */}
-        <div className="flex gap-12 items-center">
+        <div className="flex gap-16 items-center">
           {/* R32 Left */}
           <div className="space-y-6">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
             {["M74", "M77", "M73", "M75", "M83", "M84", "M81", "M82"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* R16 Left */}
-          <div className="space-y-24">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
+          <div className="space-y-28">
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
             {["M89", "M90", "M93", "M94"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* QF Left */}
-          <div className="space-y-[200px]">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
+          <div className="space-y-[210px]">
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
             {["M97", "M98"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* SF Left */}
-          <div className="space-y-[400px]">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
+          <div className="space-y-[420px]">
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
             {["M101"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
         </div>
 
         {/* CENTRAL: Final & 3rd Place */}
-        <div className="space-y-16 py-12 px-6 border border-emerald-500/10 rounded-3xl bg-emerald-500/5">
-          <div className="space-y-4">
-            <Trophy className="w-12 h-12 text-emerald-500 mx-auto" />
-            <p className="text-[13px] font-black text-white uppercase tracking-widest italic leading-none">The Final</p>
+        <div className="space-y-20 py-16 px-10 border border-emerald-500/10 rounded-3xl bg-emerald-500/5 shadow-inner">
+          <div className="space-y-6">
+            <Trophy className="w-16 h-16 text-emerald-500 mx-auto" />
+            <p className="text-[14px] font-black text-white uppercase tracking-widest italic leading-none shadow-emerald-500/10">The Final</p>
             <BracketMatch match={matchMap["M104"]} />
           </div>
-          <div className="space-y-4 pt-6 border-t border-white/5">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">3rd Place Match</p>
+          <div className="space-y-6 pt-10 border-t border-white/5">
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[5]}</p>
             <BracketMatch match={matchMap["M103"]} />
           </div>
         </div>
 
         {/* RIGHT Bracket */}
-        <div className="flex gap-12 items-center flex-row-reverse">
+        <div className="flex gap-16 items-center flex-row-reverse">
           {/* R32 Right */}
           <div className="space-y-6">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[1]}</p>
             {["M76", "M78", "M79", "M80", "M86", "M88", "M85", "M87"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* R16 Right */}
-          <div className="space-y-24">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
+          <div className="space-y-28">
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[2]}</p>
             {["M91", "M92", "M95", "M96"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* QF Right */}
-          <div className="space-y-[200px]">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
+          <div className="space-y-[210px]">
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[3]}</p>
             {["M99", "M100"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
           {/* SF Right */}
-          <div className="space-y-[400px]">
-            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
+          <div className="space-y-[420px]">
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">{roundTitles[4]}</p>
             {["M102"].map(id => <BracketMatch key={id} match={matchMap[id]} />)}
           </div>
         </div>
@@ -467,7 +468,7 @@ function AdminPanel({ matches }: any) {
   );
 }
 
-// --- REMAINING UTILS (Timer, Leaderboard, Auth, etc.) ---
+// --- UTILS (Timer, Leaderboard, Auth, etc.) ---
 function NavBtn({ active, onClick, label }: any) {
   return (
     <button onClick={onClick} className={`flex-1 min-w-[90px] py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
@@ -601,7 +602,7 @@ function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isComplet
           <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter shadow-emerald-500/10">Bonus Predictions</h2>
           {isPermanentlyLocked && <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-md"><Lock className="w-3 h-3"/> Locked</span>}
         </div>
-        <p className="text-slate-400 text-sm font-bold my-10 uppercase tracking-widest italic">Put your football brain to the test and predict the following:</p>
+        <p className="text-slate-400 text-sm font-bold my-10 uppercase tracking-widest italic leading-relaxed">Put your football brain to the test and predict the following:</p>
         <div className="space-y-10">
           <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
           <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v) => setForm({...form, assister: v})} disabled={isPermanentlyLocked} />
