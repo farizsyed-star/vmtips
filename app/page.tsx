@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, Settings, LogOut, CheckCircle, BookOpen, Clock, Globe, AlertCircle, Lock, Users, Sparkles, ListOrdered, GitMerge, Goal } from "lucide-react";
+import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
@@ -68,7 +68,7 @@ export default function WorldCupApp() {
     }
   };
 
-  // Fetch matches and auto-set the correct active tab based on dates
+  // Auto-route matches tab based on current date
   useEffect(() => {
     supabase.from("matches").select("*").order("kickoff_time", { ascending: true }).then(({ data }) => {
       const fetchedMatches = data || [];
@@ -170,13 +170,14 @@ function StandingsTable({ matches }: { matches: any[] }) {
     const table: any = {};
     const groupMatches = matches.filter(m => m.group_name === groupName && m.settled);
     
-    // Initialize teams from matches in this group
+    // Initialize teams
     const groupTeams = Array.from(new Set(matches.filter(m => m.group_name === groupName).flatMap(m => [m.home_team, m.away_team])));
-    groupTeams.forEach(t => table[t] = { name: t, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
+    groupTeams.forEach(t => table[t as string] = { name: t, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 });
 
     groupMatches.forEach(m => {
       const h = table[m.home_team];
       const a = table[m.away_team];
+      if (!h || !a) return;
       h.p++; a.p++;
       h.gf += m.home_score; h.ga += m.away_score;
       a.gf += m.away_score; a.ga += m.home_score;
@@ -190,47 +191,43 @@ function StandingsTable({ matches }: { matches: any[] }) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
       {groups.map(g => {
         const teams = calculateGroup(g);
-        if (teams.length === 0) return null; // Skip empty groups
+        if (teams.length === 0) return null;
         return (
-          <div key={g} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-            <div className="bg-emerald-500/10 px-4 py-3 border-b border-white/5">
-              <span className="text-[12px] font-black uppercase text-emerald-400 italic tracking-widest">{g}</span>
-            </div>
+          <div key={g} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-lg">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-[11px]">
+              <table className="w-full text-left text-[11px] md:text-xs">
                 <thead>
-                  <tr className="text-slate-500 border-b border-white/5 uppercase">
-                    <th className="px-4 py-3 w-8 text-center font-bold">#</th>
-                    <th className="py-3 font-bold min-w-[120px]">Team</th>
-                    <th className="py-3 text-center w-8 font-bold">P</th>
-                    <th className="py-3 text-center w-8 font-bold">W</th>
-                    <th className="py-3 text-center w-8 font-bold">D</th>
-                    <th className="py-3 text-center w-8 font-bold">L</th>
-                    <th className="py-3 text-center w-8 font-bold">GF</th>
-                    <th className="py-3 text-center w-8 font-bold">GA</th>
-                    <th className="py-3 text-center w-8 font-bold">GD</th>
-                    <th className="py-3 px-4 text-center w-10 font-black text-emerald-400">Pts</th>
+                  <tr className="text-slate-400 border-b border-white/5">
+                    <th className="px-4 py-4 font-bold tracking-widest uppercase w-full">{g}</th>
+                    <th className="px-3 py-4 text-center font-semibold">P</th>
+                    <th className="px-3 py-4 text-center font-semibold">W</th>
+                    <th className="px-3 py-4 text-center font-semibold">D</th>
+                    <th className="px-3 py-4 text-center font-semibold">L</th>
+                    <th className="px-3 py-4 text-center font-semibold">GF</th>
+                    <th className="px-3 py-4 text-center font-semibold">GA</th>
+                    <th className="px-3 py-4 text-center font-semibold">GD</th>
+                    <th className="px-4 py-4 text-center font-bold">Pts</th>
                   </tr>
                 </thead>
                 <tbody>
                   {teams.map((t: any, i) => (
-                    <tr key={t.name} className={`border-b border-white/5 last:border-0 ${i < 2 ? "bg-emerald-500/5" : ""}`}>
-                      <td className="px-4 py-3 text-center font-black text-slate-600">{i + 1}</td>
-                      <td className="py-3 flex items-center gap-2">
-                        <img src={getFlag(t.name) || ""} className="w-5 h-3 object-cover rounded-sm shadow-sm" alt="" />
-                        <span className="font-bold text-white uppercase tracking-tight">{t.name}</span>
+                    <tr key={t.name} className={`border-b border-white/5 last:border-0 transition-colors hover:bg-white/5 ${i < 2 ? "bg-emerald-500/5" : ""}`}>
+                      <td className="px-4 py-3 flex items-center gap-3">
+                        <span className="font-bold text-slate-500 w-3">{i + 1}</span>
+                        <img src={getFlag(t.name) || ""} className="w-5 h-3.5 object-cover rounded-sm shadow-sm" alt="" />
+                        <span className="font-bold text-white tracking-tight">{t.name}</span>
                       </td>
-                      <td className="text-center font-bold text-slate-400">{t.p}</td>
-                      <td className="text-center font-bold text-slate-400">{t.w}</td>
-                      <td className="text-center font-bold text-slate-400">{t.d}</td>
-                      <td className="text-center font-bold text-slate-400">{t.l}</td>
-                      <td className="text-center font-bold text-slate-400">{t.gf}</td>
-                      <td className="text-center font-bold text-slate-400">{t.ga}</td>
-                      <td className="text-center font-bold text-slate-400">{t.gd > 0 ? `+${t.gd}` : t.gd}</td>
-                      <td className="text-center px-4 font-black text-emerald-400 text-sm">{t.pts}</td>
+                      <td className="text-center text-slate-300">{t.p}</td>
+                      <td className="text-center text-slate-300">{t.w}</td>
+                      <td className="text-center text-slate-300">{t.d}</td>
+                      <td className="text-center text-slate-300">{t.l}</td>
+                      <td className="text-center text-slate-300">{t.gf}</td>
+                      <td className="text-center text-slate-300">{t.ga}</td>
+                      <td className="text-center text-slate-300">{t.gd > 0 ? `+${t.gd}` : t.gd}</td>
+                      <td className="text-center px-4 font-black text-white">{t.pts}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -335,7 +332,7 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- ADMIN PANEL ---
+// --- ADMIN PANEL ADDITIONS ---
 function AdminPanel({ matches }: any) {
   const [scores, setScores] = useState<any>({});
   const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
@@ -603,7 +600,7 @@ function CountdownTimer({ targetDate, label, isPending }: any) {
     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6">
       <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em]">{label}</p>
       {isPending ? (
-        <span className="text-slate-500 font-black uppercase text-xs flex items-center gap-2 tracking-[0.2em]"><Lock className="w-3 h-3" /> Awaiting Teams</span>
+        <span className="text-slate-500 font-black uppercase text-xs flex items-center gap-2 tracking-[0.2em]"><Lock className="w-3 h-3" /> Waiting...</span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm tracking-widest">Locked</span>
       ) : timeLeft ? (
@@ -611,6 +608,15 @@ function CountdownTimer({ targetDate, label, isPending }: any) {
           <TimeBlock unit="Days" val={timeLeft.d} /> <TimeBlock unit="Hours" val={timeLeft.h} /> <TimeBlock unit="Mins" val={timeLeft.m} /> <TimeBlock unit="Secs" val={timeLeft.s} />
         </div>
       ) : <span className="text-slate-600 font-black animate-pulse">...</span>}
+    </div>
+  );
+}
+
+function TimeBlock({ unit, val }: any) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-2xl leading-none tabular-nums tracking-tighter">{val.toString().padStart(2, '0')}</span>
+      <span className="text-[8px] text-slate-500 not-italic uppercase font-bold mt-1 tracking-widest">{unit}</span>
     </div>
   );
 }
