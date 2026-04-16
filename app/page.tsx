@@ -542,6 +542,13 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
   const unsettledMatches = matches.filter((m: any) => !m.settled).sort((a: any, b: any) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
   const settledMatches = matches.filter((m: any) => m.settled).sort((a: any, b: any) => new Date(b.kickoff_time).getTime() - new Date(a.kickoff_time).getTime());
 
+  // Strict grouping for the UI to prevent date mess-ups
+  const phaseOrder = ['group', 'r32', 'r16', 'quarter', 'semi', 'bronze', 'final'];
+  const phaseNames: any = {
+    'group': 'Group Stage', 'r32': 'Round of 32', 'r16': 'Round of 16', 
+    'quarter': 'Quarter-Finals', 'semi': 'Semi-Finals', 'bronze': 'Bronze Match', 'final': 'The Final'
+  };
+
   const addPlayer = async () => {
     if (!newPlayer.name || !newPlayer.team) return alert("Fill in name and team!");
     const { error } = await supabase.from("tournament_players").insert(newPlayer);
@@ -610,62 +617,88 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
           <button onClick={() => setAdminTab('settled')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${adminTab === 'settled' ? 'bg-amber-400 text-black shadow-md' : 'text-slate-500 hover:text-white'}`}>Settled</button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-8">
           {adminTab === 'unsettled' && unsettledMatches.length === 0 && <p className="text-slate-500 text-xs font-bold uppercase tracking-widest py-8 text-center">No Unsettled Matches</p>}
           
-          {adminTab === 'unsettled' && unsettledMatches.map((m: any) => (
-            <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center group gap-4">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase text-amber-400/80 mb-1">{new Date(m.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                <span className="text-[11px] font-black uppercase tracking-tight text-slate-300 group-hover:text-white transition-colors">{m.home_team} vs {m.away_team} <span className="text-[9px] text-slate-600">({m.sub_phase})</span></span>
+          {adminTab === 'unsettled' && phaseOrder.map(phase => {
+            const phaseMatches = unsettledMatches.filter(m => m.sub_phase === phase);
+            if (phaseMatches.length === 0) return null;
+            
+            return (
+              <div key={phase} className="bg-black/20 border border-white/5 rounded-2xl p-4">
+                <h3 className="text-amber-400 font-black uppercase text-[10px] tracking-widest mb-4 border-b border-white/10 pb-2">{phaseNames[phase]}</h3>
+                <div className="space-y-3">
+                  {phaseMatches.map((m: any) => (
+                    <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center group gap-4 hover:border-white/10 transition-colors">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black uppercase text-slate-500 mb-1 flex items-center gap-1.5"><Clock className="w-3 h-3"/> {new Date(m.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="text-[11px] font-black uppercase tracking-tight text-white">{m.home_team} vs {m.away_team}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {m.sub_phase === 'group' ? (
+                          <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
+                            <button onClick={() => settleMatch(m, {h:1, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">1</button>
+                            <button onClick={() => settleMatch(m, {h:0, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">X</button>
+                            <button onClick={() => settleMatch(m, {h:0, a:1})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">2</button>
+                          </div>
+                        ) : m.sub_phase === 'r32' ? (
+                          <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
+                            <button onClick={() => settleMatch(m, {h:1, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-colors shadow-sm">{getTeamLabel(m.home_team)}</button>
+                            <button onClick={() => settleMatch(m, {h:0, a:1})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-colors shadow-sm">{getTeamLabel(m.away_team)}</button>
+                          </div>
+                        ) : (
+                          <>
+                            <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
+                            <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
+                            <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white outline-none" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
+                              <option value="">PW?</option>
+                              <option value="home">Home</option>
+                              <option value="away">Away</option>
+                            </select>
+                            <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1.5 rounded font-black uppercase text-[9px] italic shadow-md hover:scale-105 transition-transform">Settle</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                {m.sub_phase === 'group' ? (
-                  <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
-                    <button onClick={() => settleMatch(m, {h:1, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">1</button>
-                    <button onClick={() => settleMatch(m, {h:0, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">X</button>
-                    <button onClick={() => settleMatch(m, {h:0, a:1})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">2</button>
-                  </div>
-                ) : m.sub_phase === 'r32' ? (
-                  <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
-                    <button onClick={() => settleMatch(m, {h:1, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-colors shadow-sm">{getTeamLabel(m.home_team)}</button>
-                    <button onClick={() => settleMatch(m, {h:0, a:1})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-colors shadow-sm">{getTeamLabel(m.away_team)}</button>
-                  </div>
-                ) : (
-                  <>
-                    <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
-                    <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
-                    <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white outline-none" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
-                      <option value="">PW?</option>
-                      <option value="home">Home</option>
-                      <option value="away">Away</option>
-                    </select>
-                    <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1.5 rounded font-black uppercase text-[9px] italic shadow-md hover:scale-105 transition-transform">Settle</button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {adminTab === 'settled' && settledMatches.length === 0 && <p className="text-slate-500 text-xs font-bold uppercase tracking-widest py-8 text-center">No Settled Matches</p>}
           
-          {adminTab === 'settled' && settledMatches.map((m: any) => (
-            <div key={m.id} className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 flex flex-col md:flex-row justify-between items-start md:items-center group gap-4">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase text-emerald-400/80 mb-1">{new Date(m.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                <span className="text-[11px] font-black uppercase tracking-tight text-white">{m.home_team} vs {m.away_team} <span className="text-[9px] text-emerald-500/50">({m.sub_phase})</span></span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-lg font-black text-emerald-400 tabular-nums italic bg-black/40 px-4 py-1 rounded-lg">
-                  {m.home_score} - {m.away_score} {m.penalty_winner_actual ? `(${m.penalty_winner_actual.substring(0,1).toUpperCase()})` : ''}
-                </span>
-                <button onClick={() => unsettleMatch(m)} className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white p-2 rounded-lg transition-colors" title="Unsettle Match (Reverses Points)">
-                  <RotateCcw className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+          {adminTab === 'settled' && phaseOrder.map(phase => {
+             const phaseMatches = settledMatches.filter(m => m.sub_phase === phase);
+             if (phaseMatches.length === 0) return null;
+             
+             return (
+               <div key={phase} className="bg-black/20 border border-white/5 rounded-2xl p-4">
+                  <h3 className="text-emerald-400 font-black uppercase text-[10px] tracking-widest mb-4 border-b border-white/10 pb-2">{phaseNames[phase]}</h3>
+                  <div className="space-y-3">
+                    {phaseMatches.map((m: any) => (
+                      <div key={m.id} className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 flex flex-col md:flex-row justify-between items-start md:items-center group gap-4">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black uppercase text-slate-500 mb-1 flex items-center gap-1.5"><Clock className="w-3 h-3 text-emerald-500"/> {new Date(m.kickoff_time).toLocaleString('sv-SE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[11px] font-black uppercase tracking-tight text-white">{m.home_team} vs {m.away_team}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-lg font-black text-emerald-400 tabular-nums italic bg-black/40 px-4 py-1 rounded-lg">
+                            {m.sub_phase === 'group' ? (m.home_score > m.away_score ? '1' : m.home_score < m.away_score ? '2' : 'X') :
+                             m.sub_phase === 'r32' ? (m.home_score > m.away_score ? getTeamLabel(m.home_team) : getTeamLabel(m.away_team)) : 
+                             `${m.home_score} - ${m.away_score} ${m.penalty_winner_actual ? `(${m.penalty_winner_actual.substring(0,1).toUpperCase()})` : ''}`}
+                          </span>
+                          <button onClick={() => unsettleMatch(m)} className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white p-2 rounded-lg transition-colors" title="Unsettle Match (Reverses Points)">
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+               </div>
+             );
+          })}
         </div>
       </div>
 
@@ -704,7 +737,7 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
         <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-6 text-left">
           <p className="font-bold text-center">Here is how the prediction league works:</p>
           <ul className="list-disc pl-5 space-y-2 text-xs">
-            <li><strong className="text-white">Bonus (Locks June 11):</strong> Predict tournament stats. <span className="text-emerald-400">Must be completed first!</span></li>
+            <li><strong className="text-white">Bonus (Locks 11 Juni):</strong> Predict tournament stats. <span className="text-emerald-400">Must be completed first!</span></li>
             <li><strong className="text-white">Group Stage & R32:</strong> Predict outcomes (1X2) for all matches.</li>
             <li><strong className="text-white">Knockouts (R16 onwards):</strong> Predict exact scores. Locks when the first game of that round starts.</li>
           </ul>
@@ -1178,36 +1211,40 @@ function RulesPage() {
         </div>
       </div>
 
-      {/* Tournament Deadlines */}
+      {/* Tournament Deadlines (Corrected for Swedish CEST Time) */}
       <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
-        <h3 className="text-amber-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><AlertCircle className="w-5 h-5"/> Tournament Deadlines</h3>
+        <h3 className="text-amber-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><AlertCircle className="w-5 h-5"/> Tournament Deadlines (Svensk Tid)</h3>
         <ul className="space-y-3 text-[11px] text-slate-400">
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <span className="font-black text-white uppercase tracking-widest text-[10px]">Bonus & Group Stage</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">June 11, 2026 · 21:00</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">11 Juni 2026 · 21:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Round of 32</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">June 28, 2026 · 18:00</span>
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Sextondelsfinaler (R32)</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">28 Juni 2026 · 21:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Round of 16</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 4, 2026 · 18:00</span>
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Åttondelsfinaler (R16)</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">4 Juli 2026 · 19:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Quarter-Finals & Semi-Finals</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 9, 2026 · 21:00</span>
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Kvartsfinaler</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">9 Juli 2026 · 22:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">The Finals</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">July 18, 2026 · 21:00</span>
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Semifinaler</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">14 Juli 2026 · 22:00</span>
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Bronsmatch & Final</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">18 & 19 Juli 2026</span>
           </li>
         </ul>
       </div>
 
       {/* Bonus Predictions */}
       <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
-        <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Sparkles className="w-5 h-5"/> Bonus Predictions <span className="text-[10px] text-slate-500 not-italic">(Locks June 11)</span></h3>
+        <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Sparkles className="w-5 h-5"/> Bonus Predictions <span className="text-[10px] text-slate-500 not-italic">(Locks 11 Juni)</span></h3>
         <p className="text-[11px] text-slate-400 mb-6 italic">Nail these pre-tournament predictions for a massive point boost.</p>
         <ul className="grid grid-cols-1 gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
