@@ -164,7 +164,7 @@ export default function WorldCupApp() {
       const data = await res.json();
       if (data.success) {
         alert(`Sync complete. Settled ${data.settledCount} match(es). Refreshing...`);
-        refreshMatches();
+        window.location.reload();
       } else {
         alert("Sync Error: " + data.error);
       }
@@ -566,22 +566,41 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
       }
     }
     try {
-      await settleMatchCore(m, s);
-      alert("Match Settled!");
-      refreshMatches();
+      // Calls the secure server to bypass security rules
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'manual_settle', match: m, score: s })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Match Settled!");
+        window.location.reload(); // Forces the Leaderboard and Points UI to instantly refresh
+      } else {
+        alert("Error: " + data.error);
+      }
     } catch (e: any) {
-      alert(e.message);
+      alert("Network error.");
     }
   };
 
   const unsettleMatch = async (m: any) => {
-    if(!confirm("Are you sure? This will automatically reverse and deduct the exact points awarded to users for this match.")) return;
+    if(!confirm("Are you sure? This will reverse and deduct the points awarded to users.")) return;
     try {
-      await unsettleMatchCore(m);
-      alert("Match Unsettled and Points Reversed!");
-      refreshMatches();
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'manual_unsettle', match: m })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Match Unsettled and Points Reversed!");
+        window.location.reload(); // Forces the UI to instantly update
+      } else {
+        alert("Error: " + data.error);
+      }
     } catch (e: any) {
-      alert(e.message);
+      alert("Network error.");
     }
   };
 
@@ -1228,16 +1247,12 @@ function RulesPage() {
             <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">4 Juli 2026 · 19:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Kvartsfinaler</span>
+            <span className="font-black text-white uppercase tracking-widest text-[10px]">Kvarts- & Semifinaler</span>
             <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">9 Juli 2026 · 22:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Semifinaler</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">14 Juli 2026 · 22:00</span>
-          </li>
-          <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <span className="font-black text-white uppercase tracking-widest text-[10px]">Bronsmatch & Final</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">18 & 19 Juli 2026</span>
+            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">18 Juli 2026 · 23:00</span>
           </li>
         </ul>
       </div>
@@ -1318,88 +1333,4 @@ function UsernameSetup({ userId, onComplete }: any) {
       </div>
     </div>
   );
-}
-
-// --- GLOBAL SETTLE LOGIC ---
-async function settleMatchCore(m: any, s: { h: any; a: any; pw?: string | null }) {
-  const actH = parseInt(s.h);
-  const actA = parseInt(s.a);
-  const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
-  
-  if (preds) {
-    for (const p of preds) {
-      let pts = 0;
-      const isExact = p.pred_home === actH && p.pred_away === actA;
-      let isOutcome = false;
-      
-      if (m.sub_phase === 'group') { 
-        isOutcome = Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA); 
-        pts = isOutcome ? 1 : 0; 
-      }
-      else if (m.sub_phase === 'r32') { 
-        const homeAdvances = actH > actA || (actH === actA && s.pw === 'home'); 
-        const userPickedHome = p.pred_home > p.pred_away; 
-        isOutcome = homeAdvances === userPickedHome; 
-        pts = isOutcome ? 2 : 0; 
-      }
-      else {
-        if (actH > actA) isOutcome = p.pred_home > p.pred_away; 
-        else if (actH < actA) isOutcome = p.pred_home < p.pred_away; 
-        else isOutcome = (p.pred_home === p.pred_away) && (p.penalty_winner_pred === s.pw);
-        
-        if (m.sub_phase === 'r16') pts = isExact ? 5 : (isOutcome ? 3 : 0);
-        else if (['quarter', 'semi'].includes(m.sub_phase)) pts = isExact ? 6 : (isOutcome ? 4 : 0);
-        else if (['bronze', 'final'].includes(m.sub_phase)) pts = isExact ? 7 : (isOutcome ? 5 : 0);
-      }
-      
-      if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: pts });
-    }
-  }
-  
-  await supabase.from("matches").update({ home_score: actH, away_score: actA, penalty_winner_actual: s.pw || null, settled: true }).eq("id", m.id);
-}
-
-// --- GLOBAL UNSETTLE LOGIC ---
-async function unsettleMatchCore(m: any) {
-  const actH = m.home_score;
-  const actA = m.away_score;
-  const pw = m.penalty_winner_actual;
-
-  if (actH !== null && actA !== null) {
-    const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
-    
-    if (preds) {
-      for (const p of preds) {
-        let pts = 0;
-        const isExact = p.pred_home === actH && p.pred_away === actA;
-        let isOutcome = false;
-        
-        if (m.sub_phase === 'group') { 
-          isOutcome = Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA); 
-          pts = isOutcome ? 1 : 0; 
-        }
-        else if (m.sub_phase === 'r32') { 
-          const homeAdvances = actH > actA || (actH === actA && pw === 'home'); 
-          const userPickedHome = p.pred_home > p.pred_away; 
-          isOutcome = homeAdvances === userPickedHome; 
-          pts = isOutcome ? 2 : 0; 
-        }
-        else {
-          if (actH > actA) isOutcome = p.pred_home > p.pred_away; 
-          else if (actH < actA) isOutcome = p.pred_home < p.pred_away; 
-          else isOutcome = (p.pred_home === p.pred_away) && (p.penalty_winner_pred === pw);
-          
-          if (m.sub_phase === 'r16') pts = isExact ? 5 : (isOutcome ? 3 : 0);
-          else if (['quarter', 'semi'].includes(m.sub_phase)) pts = isExact ? 6 : (isOutcome ? 4 : 0);
-          else if (['bronze', 'final'].includes(m.sub_phase)) pts = isExact ? 7 : (isOutcome ? 5 : 0);
-        }
-        
-        // REVERSE points by sending a negative amount
-        if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: -pts });
-      }
-    }
-  }
-  
-  // Clear the match data and set to unsettled
-  await supabase.from("matches").update({ home_score: null, away_score: null, penalty_winner_actual: null, settled: false }).eq("id", m.id);
 }
