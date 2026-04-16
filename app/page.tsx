@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target, CheckCircle, X, Info } from "lucide-react";
+import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target, CheckCircle, X, Info, RotateCcw } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
@@ -92,6 +92,11 @@ export default function WorldCupApp() {
     }
   };
 
+  const refreshMatches = async () => {
+    const { data } = await supabase.from("matches").select("*").order("kickoff_time", { ascending: true });
+    setMatches(data || []);
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -159,9 +164,7 @@ export default function WorldCupApp() {
       const data = await res.json();
       if (data.success) {
         alert(`Sync complete. Settled ${data.settledCount} match(es). Refreshing...`);
-        // Force refresh the match list to show updated scores
-        const { data: updated } = await supabase.from("matches").select("*").order("kickoff_time", { ascending: true });
-        setMatches(updated || []);
+        refreshMatches();
       } else {
         alert("Sync Error: " + data.error);
       }
@@ -219,7 +222,7 @@ export default function WorldCupApp() {
         {view === "stats" && <StatsPage matches={matches} />}
         {view === "leaderboard" && <Leaderboard />}
         {view === "rules" && <RulesPage />}
-        {view === "admin" && <AdminPanel matches={matches} syncFromAPI={syncFromAPI} />}
+        {view === "admin" && <AdminPanel matches={matches} syncFromAPI={syncFromAPI} refreshMatches={refreshMatches} />}
       </main>
     </div>
   );
@@ -529,11 +532,15 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
-// --- ADMIN PANEL ADDITIONS ---
-function AdminPanel({ matches, syncFromAPI }: any) {
+// --- UPGRADED ADMIN PANEL ---
+function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
+  const [adminTab, setAdminTab] = useState<'unsettled' | 'settled'>('unsettled');
   const [scores, setScores] = useState<any>({});
   const [newPlayer, setNewPlayer] = useState({ name: "", team: "", goals: 0, assists: 0 });
   const [syncing, setSyncing] = useState(false);
+
+  const unsettledMatches = matches.filter((m: any) => !m.settled).sort((a: any, b: any) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
+  const settledMatches = matches.filter((m: any) => m.settled).sort((a: any, b: any) => new Date(b.kickoff_time).getTime() - new Date(a.kickoff_time).getTime());
 
   const addPlayer = async () => {
     if (!newPlayer.name || !newPlayer.team) return alert("Fill in name and team!");
@@ -542,15 +549,30 @@ function AdminPanel({ matches, syncFromAPI }: any) {
     else { alert("Player added/updated!"); setNewPlayer({ name: "", team: "", goals: 0, assists: 0 }); }
   };
 
-  const settleMatch = async (m: any) => {
-    const s = scores[m.id];
-    if (!s || s.h === "" || s.a === "") return alert("Enter scores!");
-    if (m.phase > 1 && s.h === s.a && !s.pw) {
-      return alert("Select a penalty winner for the tie!");
+  const settleMatch = async (m: any, predefScore?: {h: number, a: number, pw?: string}) => {
+    let s = predefScore;
+    if (!s) {
+      s = scores[m.id];
+      if (!s || s.h === "" || s.a === "") return alert("Enter scores!");
+      if (m.phase > 1 && s.h === s.a && !s.pw) {
+        return alert("Select a penalty winner for the tie!");
+      }
     }
     try {
       await settleMatchCore(m, s);
       alert("Match Settled!");
+      refreshMatches();
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const unsettleMatch = async (m: any) => {
+    if(!confirm("Are you sure? This will automatically reverse and deduct the exact points awarded to users for this match.")) return;
+    try {
+      await unsettleMatchCore(m);
+      alert("Match Unsettled and Points Reversed!");
+      refreshMatches();
     } catch (e: any) {
       alert(e.message);
     }
@@ -581,21 +603,66 @@ function AdminPanel({ matches, syncFromAPI }: any) {
 
       <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-6">
         <h2 className="text-amber-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Shield className="w-5 h-5" /> Admin: Match Scores</h2>
+        
+        {/* TABS */}
+        <div className="flex gap-2 mb-6 bg-black/40 p-1 rounded-xl border border-white/5 w-fit">
+          <button onClick={() => setAdminTab('unsettled')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${adminTab === 'unsettled' ? 'bg-amber-400 text-black shadow-md' : 'text-slate-500 hover:text-white'}`}>Unsettled</button>
+          <button onClick={() => setAdminTab('settled')} className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${adminTab === 'settled' ? 'bg-amber-400 text-black shadow-md' : 'text-slate-500 hover:text-white'}`}>Settled</button>
+        </div>
+
         <div className="space-y-4">
-          {matches.filter((m: any) => !m.settled).map((m: any) => (
-            <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex justify-between items-center group">
-              <span className="text-[10px] font-black uppercase tracking-tight text-slate-500 group-hover:text-white">{m.home_team} vs {m.away_team} ({m.sub_phase})</span>
-              <div className="flex gap-2">
-                <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
-                <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
-                {m.phase > 1 && (
-                  <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
-                    <option value="">PW?</option>
-                    <option value="home">Home</option>
-                    <option value="away">Away</option>
-                  </select>
+          {adminTab === 'unsettled' && unsettledMatches.length === 0 && <p className="text-slate-500 text-xs font-bold uppercase tracking-widest py-8 text-center">No Unsettled Matches</p>}
+          
+          {adminTab === 'unsettled' && unsettledMatches.map((m: any) => (
+            <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center group gap-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase text-amber-400/80 mb-1">{new Date(m.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-[11px] font-black uppercase tracking-tight text-slate-300 group-hover:text-white transition-colors">{m.home_team} vs {m.away_team} <span className="text-[9px] text-slate-600">({m.sub_phase})</span></span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {m.sub_phase === 'group' ? (
+                  <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
+                    <button onClick={() => settleMatch(m, {h:1, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">1</button>
+                    <button onClick={() => settleMatch(m, {h:0, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">X</button>
+                    <button onClick={() => settleMatch(m, {h:0, a:1})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white w-10 py-1.5 rounded text-[10px] font-black transition-colors shadow-sm">2</button>
+                  </div>
+                ) : m.sub_phase === 'r32' ? (
+                  <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
+                    <button onClick={() => settleMatch(m, {h:1, a:0})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-colors shadow-sm">{getTeamLabel(m.home_team)}</button>
+                    <button onClick={() => settleMatch(m, {h:0, a:1})} className="bg-slate-800 hover:bg-emerald-500 hover:text-black text-white px-3 py-1.5 rounded text-[10px] font-black uppercase transition-colors shadow-sm">{getTeamLabel(m.away_team)}</button>
+                  </div>
+                ) : (
+                  <>
+                    <input type="number" placeholder="H" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], h: e.target.value}})} />
+                    <input type="number" placeholder="A" className="w-10 bg-white/5 rounded p-1 text-center text-white" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], a: e.target.value}})} />
+                    <select className="w-16 bg-white/5 rounded p-1 text-[9px] text-white outline-none" onChange={(e) => setScores({...scores, [m.id]: {...scores[m.id], pw: e.target.value}})}>
+                      <option value="">PW?</option>
+                      <option value="home">Home</option>
+                      <option value="away">Away</option>
+                    </select>
+                    <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1.5 rounded font-black uppercase text-[9px] italic shadow-md hover:scale-105 transition-transform">Settle</button>
+                  </>
                 )}
-                <button onClick={() => settleMatch(m)} className="bg-emerald-500 text-black px-4 py-1 rounded font-black uppercase text-[9px] italic shadow-md">Settle</button>
+              </div>
+            </div>
+          ))}
+
+          {adminTab === 'settled' && settledMatches.length === 0 && <p className="text-slate-500 text-xs font-bold uppercase tracking-widest py-8 text-center">No Settled Matches</p>}
+          
+          {adminTab === 'settled' && settledMatches.map((m: any) => (
+            <div key={m.id} className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 flex flex-col md:flex-row justify-between items-start md:items-center group gap-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase text-emerald-400/80 mb-1">{new Date(m.kickoff_time).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-[11px] font-black uppercase tracking-tight text-white">{m.home_team} vs {m.away_team} <span className="text-[9px] text-emerald-500/50">({m.sub_phase})</span></span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-lg font-black text-emerald-400 tabular-nums italic bg-black/40 px-4 py-1 rounded-lg">
+                  {m.home_score} - {m.away_score} {m.penalty_winner_actual ? `(${m.penalty_winner_actual.substring(0,1).toUpperCase()})` : ''}
+                </span>
+                <button onClick={() => unsettleMatch(m)} className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white p-2 rounded-lg transition-colors" title="Unsettle Match (Reverses Points)">
+                  <RotateCcw className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))}
@@ -1253,4 +1320,49 @@ async function settleMatchCore(m: any, s: { h: any; a: any; pw?: string | null }
   }
   
   await supabase.from("matches").update({ home_score: actH, away_score: actA, penalty_winner_actual: s.pw || null, settled: true }).eq("id", m.id);
+}
+
+// --- GLOBAL UNSETTLE LOGIC ---
+async function unsettleMatchCore(m: any) {
+  const actH = m.home_score;
+  const actA = m.away_score;
+  const pw = m.penalty_winner_actual;
+
+  if (actH !== null && actA !== null) {
+    const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", m.id);
+    
+    if (preds) {
+      for (const p of preds) {
+        let pts = 0;
+        const isExact = p.pred_home === actH && p.pred_away === actA;
+        let isOutcome = false;
+        
+        if (m.sub_phase === 'group') { 
+          isOutcome = Math.sign(p.pred_home - p.pred_away) === Math.sign(actH - actA); 
+          pts = isOutcome ? 1 : 0; 
+        }
+        else if (m.sub_phase === 'r32') { 
+          const homeAdvances = actH > actA || (actH === actA && pw === 'home'); 
+          const userPickedHome = p.pred_home > p.pred_away; 
+          isOutcome = homeAdvances === userPickedHome; 
+          pts = isOutcome ? 2 : 0; 
+        }
+        else {
+          if (actH > actA) isOutcome = p.pred_home > p.pred_away; 
+          else if (actH < actA) isOutcome = p.pred_home < p.pred_away; 
+          else isOutcome = (p.pred_home === p.pred_away) && (p.penalty_winner_pred === pw);
+          
+          if (m.sub_phase === 'r16') pts = isExact ? 5 : (isOutcome ? 3 : 0);
+          else if (['quarter', 'semi'].includes(m.sub_phase)) pts = isExact ? 6 : (isOutcome ? 4 : 0);
+          else if (['bronze', 'final'].includes(m.sub_phase)) pts = isExact ? 7 : (isOutcome ? 5 : 0);
+        }
+        
+        // REVERSE points by sending a negative amount
+        if (pts > 0) await supabase.rpc('increment_points', { user_id: p.user_id, amount: -pts });
+      }
+    }
+  }
+  
+  // Clear the match data and set to unsettled
+  await supabase.from("matches").update({ home_score: null, away_score: null, penalty_winner_actual: null, settled: false }).eq("id", m.id);
 }
