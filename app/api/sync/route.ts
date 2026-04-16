@@ -2,24 +2,23 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// We use the SERVICE_ROLE_KEY here so the server has "God Mode" permissions 
-// to update scores and points without being blocked by security rules.
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! 
-);
-
 export async function POST() {
-  const RAPID_KEY = process.env.RAPIDAPI_KEY; // Pulled safely from Vercel Environment Variables
+  const RAPID_KEY = process.env.RAPIDAPI_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // 1. Check if Vercel has the keys it needs
+  if (!RAPID_KEY || !supabaseUrl || !supabaseServiceKey) {
+    return NextResponse.json({ error: "Missing Environment Variables in Vercel" }, { status: 500 });
+  }
+
+  // 2. Initialize Supabase INSIDE the function so the Vercel build doesn't crash
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   const LEAGUE_ID = 1; // World Cup
   const SEASON = 2026;
 
-  if (!RAPID_KEY) {
-    return NextResponse.json({ error: "Missing RAPIDAPI_KEY in Vercel settings" }, { status: 500 });
-  }
-
   try {
-    // 1. Fetch latest results from API-Football
     const res = await fetch(`https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}`, {
       headers: { "x-rapidapi-key": RAPID_KEY, "x-rapidapi-host": "v3.football.api-sports.io" }
     });
@@ -27,7 +26,6 @@ export async function POST() {
 
     let settledCount = 0;
 
-    // 2. Loop through every match the API sends back
     for (const fixture of data.response || []) {
       const status = fixture.fixture?.status?.short;
       
@@ -44,7 +42,7 @@ export async function POST() {
 
         if (match && !match.settled) {
           // Calculate and award points for every user who predicted this match
-          await calculatePointsForMatch(match, { h: hScore, a: aScore, pw: pWinner });
+          await calculatePointsForMatch(supabase, match, { h: hScore, a: aScore, pw: pWinner });
           settledCount++;
         }
       }
@@ -57,7 +55,7 @@ export async function POST() {
 }
 
 // Internal server-side logic to calculate points
-async function calculatePointsForMatch(m: any, s: { h: any; a: any; pw?: string | null }) {
+async function calculatePointsForMatch(supabase: any, m: any, s: { h: any; a: any; pw?: string | null }) {
   const actH = parseInt(s.h);
   const actA = parseInt(s.a);
 
