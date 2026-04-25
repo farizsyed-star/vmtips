@@ -939,10 +939,10 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
         <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-6 text-left">
           <p className="font-bold text-center">Here is how the prediction league works:</p>
           <div className="space-y-4 mt-4">
-            <p className="text-[11px] leading-relaxed"><strong className="text-white">Bonus (Locks June 11):</strong> Predict tournament stats. Must be completed first!</p>
+            <p className="text-[11px] leading-relaxed"><strong className="text-amber-400">Bonus (Locks June 11):</strong> Predict tournament stats. Must be completed first!</p>
             <p className="text-[11px] leading-relaxed"><strong className="text-white">Group Stage & R32:</strong> Predict outcomes (1X2) for all matches.</p>
             <p className="text-[11px] leading-relaxed"><strong className="text-white">Knockouts (R16 onwards):</strong> Predict exact scores. Locks when the first game of that round starts.</p>
-            <p className="text-[11px] leading-relaxed"><strong className="text-white">Private Leagues:</strong> Head to the Leagues tab to create or join a mini-league with your friends. Your points count toward both the global and private leaderboards!</p>
+            <p className="text-[11px] leading-relaxed"><strong className="text-blue-400">Private Leagues:</strong> Head to the Leagues tab to create or join a mini-league with your friends. Your points count toward both the global and private leaderboards!</p>
             <p className="text-[11px] italic text-center mt-6">Check out the <strong className="text-white">Rules</strong> tab for the full scoring system.</p>
           </div>
         </div>
