@@ -85,7 +85,8 @@ export default function WorldCupApp() {
     const { data } = await supabase.from("bonus_predictions").select("user_id").eq("user_id", id).maybeSingle();
     if (data) {
       setBonusCompleted(true);
-      setView("matches");
+      // Only set to matches if we are in the initial loading state. This fixes the tab-switch bug!
+      setView((prev) => (prev === "loading" ? "matches" : prev));
     } else {
       setBonusCompleted(false);
       setView("bonus");
@@ -118,7 +119,7 @@ export default function WorldCupApp() {
       } else {
         setUser(null);
         setProfile(null);
-        setView("matches");
+        setView((prev) => (prev === "loading" ? "matches" : prev));
       }
       setLoading(false);
     });
@@ -184,7 +185,15 @@ export default function WorldCupApp() {
       {/* LOCKED HEADER & NAVIGATION */}
       <div className="sticky top-0 z-50 bg-[#07090d]/95 backdrop-blur-xl border-b border-white/5">
         <header className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div 
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => {
+              if (bonusCompleted) {
+                setView("matches");
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+          >
             <Trophy className="text-emerald-500 w-8 h-8" />
             <h1 className="font-black text-2xl md:text-3xl text-white uppercase italic tracking-tighter leading-none">
               World Cup '26<br/>
@@ -204,7 +213,7 @@ export default function WorldCupApp() {
         <nav className="max-w-[1400px] mx-auto px-4 pb-4 flex gap-1 md:gap-2 md:justify-center overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => bonusCompleted && setView("matches")} 
-            className={`flex-1 md:flex-none md:w-32 py-3 text-[11px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
+            className={`flex-1 md:flex-none min-w-[80px] md:w-32 py-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
           >
             {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
           </button>
@@ -241,9 +250,9 @@ function StatsPage({ matches }: { matches: any[] }) {
     <div className="space-y-6">
       <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
-          <button onClick={() => setSubTab(1)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
-          <button onClick={() => setSubTab(2)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
-          <button onClick={() => setSubTab(3)} className={`flex-1 py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
+          <button onClick={() => setSubTab(1)} className={`flex-1 min-w-[120px] py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
+          <button onClick={() => setSubTab(2)} className={`flex-1 min-w-[120px] py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
+          <button onClick={() => setSubTab(3)} className={`flex-1 min-w-[120px] py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
         </div>
       </div>
 
@@ -288,7 +297,7 @@ function StandingsTable({ matches }: { matches: any[] }) {
         return (
           <div key={g} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-lg">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-[11px] md:text-xs">
+              <table className="w-full text-left text-[11px] md:text-xs min-w-[300px]">
                 <thead>
                   <tr className="text-slate-400 border-b border-white/5">
                     <th className="px-4 py-4 font-bold tracking-widest uppercase w-full">{g}</th>
@@ -351,16 +360,16 @@ const BracketMatch = ({ match }: { match?: any }) => {
         <span className="text-[7.5px] font-black text-emerald-400/80 tracking-widest uppercase">{timeStr}</span>
       </div>
       <div className="w-full flex justify-between items-center px-1.5 py-0.5 border-b border-white/5 h-1/2">
-         <div className="flex items-center gap-1.5">
-           {getFlag(match?.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-black uppercase tracking-widest ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.home_team)}</span>
+         <div className="flex items-center gap-1.5 overflow-hidden">
+           {getFlag(match?.home_team) ? <img src={getFlag(match.home_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm flex-shrink-0" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px] flex-shrink-0" />}
+           <span className={`text-[9px] font-black uppercase tracking-widest truncate ${hWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.home_team)}</span>
          </div>
          <span className={`text-[10px] font-black tabular-nums ${hWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.home_score : "-"}</span>
       </div>
       <div className="w-full flex justify-between items-center px-1.5 py-0.5 h-1/2">
-         <div className="flex items-center gap-1.5">
-           {getFlag(match?.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px]" />}
-           <span className={`text-[9px] font-black uppercase tracking-widest ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.away_team)}</span>
+         <div className="flex items-center gap-1.5 overflow-hidden">
+           {getFlag(match?.away_team) ? <img src={getFlag(match.away_team)!} className="w-3.5 h-2.5 object-cover rounded-[1px] shadow-sm flex-shrink-0" alt="" /> : <div className="w-3.5 h-2.5 bg-white/5 rounded-[1px] flex-shrink-0" />}
+           <span className={`text-[9px] font-black uppercase tracking-widest truncate ${aWin ? "text-emerald-400" : "text-slate-300"}`}>{getTeamLabel(match?.away_team)}</span>
          </div>
          <span className={`text-[10px] font-black tabular-nums ${aWin ? "text-emerald-400" : "text-slate-400"}`}>{match?.settled ? match.away_score : "-"}</span>
       </div>
@@ -644,9 +653,9 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
             if (phaseMatches.length === 0) return null;
             
             return (
-              <div key={phase} className="bg-black/20 border border-white/5 rounded-2xl p-4">
-                <h3 className="text-amber-400 font-black uppercase text-[10px] tracking-widest mb-4 border-b border-white/10 pb-2">{phaseNames[phase]}</h3>
-                <div className="space-y-3">
+              <div key={phase} className="bg-black/20 border border-white/5 rounded-2xl p-4 overflow-x-auto">
+                <h3 className="text-amber-400 font-black uppercase text-[10px] tracking-widest mb-4 border-b border-white/10 pb-2 min-w-[300px]">{phaseNames[phase]}</h3>
+                <div className="space-y-3 min-w-[300px]">
                   {phaseMatches.map((m: any) => (
                     <div key={m.id} className="p-4 bg-black/40 rounded-xl border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center group gap-4 hover:border-white/10 transition-colors">
                       <div className="flex flex-col">
@@ -693,9 +702,9 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
              if (phaseMatches.length === 0) return null;
              
              return (
-               <div key={phase} className="bg-black/20 border border-white/5 rounded-2xl p-4">
-                  <h3 className="text-emerald-400 font-black uppercase text-[10px] tracking-widest mb-4 border-b border-white/10 pb-2">{phaseNames[phase]}</h3>
-                  <div className="space-y-3">
+               <div key={phase} className="bg-black/20 border border-white/5 rounded-2xl p-4 overflow-x-auto">
+                  <h3 className="text-emerald-400 font-black uppercase text-[10px] tracking-widest mb-4 border-b border-white/10 pb-2 min-w-[300px]">{phaseNames[phase]}</h3>
+                  <div className="space-y-3 min-w-[300px]">
                     {phaseMatches.map((m: any) => (
                       <div key={m.id} className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 flex flex-col md:flex-row justify-between items-start md:items-center group gap-4">
                         <div className="flex flex-col">
@@ -723,7 +732,7 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
 
       <div className="bg-emerald-400/5 border border-emerald-400/20 rounded-2xl p-6">
         <h2 className="text-emerald-400 font-black text-xl mb-6 uppercase italic underline flex items-center gap-2 tracking-tight leading-none"><Users className="w-5 h-5" /> Admin: Player Stats</h2>
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <input type="text" placeholder="Player Name" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})} />
           <input type="text" placeholder="Team" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, team: e.target.value})} />
           <input type="number" placeholder="Goals" className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-emerald-500 outline-none" onChange={(e) => setNewPlayer({...newPlayer, goals: parseInt(e.target.value) || 0})} />
@@ -737,7 +746,7 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
 
 function NavBtn({ active, onClick, label }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 md:flex-none md:w-32 py-3 text-[11px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+    <button onClick={onClick} className={`flex-1 md:flex-none min-w-[80px] md:w-32 py-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
       {label}
     </button>
   );
@@ -756,7 +765,7 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
         <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-6 text-left">
           <p className="font-bold text-center">Here is how the prediction league works:</p>
           <ul className="list-disc pl-5 space-y-2 text-xs">
-            <li><strong className="text-white">Bonus (Locks 11 Juni):</strong> Predict tournament stats. <span className="text-emerald-400">Must be completed first!</span></li>
+            <li><strong className="text-white">Bonus (Locks June 11):</strong> Predict tournament stats. <span className="text-emerald-400">Must be completed first!</span></li>
             <li><strong className="text-white">Group Stage & R32:</strong> Predict outcomes (1X2) for all matches.</li>
             <li><strong className="text-white">Knockouts (R16 onwards):</strong> Predict exact scores. Locks when the first game of that round starts.</li>
           </ul>
@@ -784,7 +793,7 @@ function MiniLeaderboard() {
           <span className="text-sm font-black text-emerald-400 tabular-nums">{p.total_points}</span>
         </div>
       ))}
-      <button onClick={() => window.scrollTo(0,0)} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">See Full Standings</button>
+      <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">See Full Standings</button>
     </div>
   );
 }
@@ -834,7 +843,7 @@ function MatchList({ matches, tab, setTab, userId }: any) {
     }
   }
 
-  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Gold & Bronze Finals", "Results"];
+  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Bronze Match & Final", "Results"];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 items-start">
@@ -852,7 +861,7 @@ function MatchList({ matches, tab, setTab, userId }: any) {
             <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
             <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
             <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
-            <PhaseTab id={5} label="Gold & Bronze Finals" active={tab === 5} onClick={setTab} />
+            <PhaseTab id={5} label="Bronze Match & Final" active={tab === 5} onClick={setTab} />
             <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
           </div>
         </div>
@@ -925,7 +934,7 @@ function HowToPlaySidebar({ tab }: { tab: number }) {
 
 function PhaseTab({ id, label, active, onClick }: any) {
   return (
-    <button onClick={() => onClick(id)} className={`flex-1 py-2 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${active ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>{label}</button>
+    <button onClick={() => onClick(id)} className={`flex-1 min-w-[120px] py-2 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${active ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>{label}</button>
   );
 }
 
@@ -988,43 +997,43 @@ function MatchCard({ match, userId, locked, isPending }: any) {
         <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest leading-none shadow-emerald-500/10 mr-12 md:mr-0">{match.channel}</span>
       </div>
       
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-2 md:gap-4">
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
-          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
-          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.home_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.home_team}</span>
+          {getFlag(match.home_team) ? <img src={getFlag(match.home_team)!} className="w-8 h-5 md:w-10 md:h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-8 h-5 md:w-10 md:h-6 text-slate-700" />}
+          <span className={`font-black text-[10px] md:text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.home_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.home_team}</span>
         </div>
         
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-1 md:gap-2">
           {isGroup ? (
-             <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-14">
-               <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === '1' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>1</button>
-               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '0', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === 'X' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>X</button>
-               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === '2' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>2</button>
+             <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-12 md:h-14">
+               <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === '1' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>1</button>
+               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '0', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === 'X' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>X</button>
+               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all disabled:opacity-50 ${active1X2 === '2' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>2</button>
              </div>
           ) : isR32 ? (
-             <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-14">
-               <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`px-3 h-full rounded-lg text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${r32Pick === 'home' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>{getTeamLabel(match.home_team)} ▶</button>
-               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`px-3 h-full rounded-lg text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${r32Pick === 'away' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>◀ {getTeamLabel(match.away_team)}</button>
+             <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-12 md:h-14 max-w-[120px] md:max-w-none">
+               <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`px-2 md:px-3 h-full rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50 truncate ${r32Pick === 'home' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>{getTeamLabel(match.home_team)} ▶</button>
+               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`px-2 md:px-3 h-full rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50 truncate ${r32Pick === 'away' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>◀ {getTeamLabel(match.away_team)}</button>
              </div>
           ) : (
              <>
                <input type="number" min="0" disabled={locked} value={pred.h} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
-                 onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
+                 onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-10 h-12 md:w-12 md:h-14 bg-black/40 border border-white/10 rounded-xl text-center text-lg md:text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
                <input type="number" min="0" disabled={locked} value={pred.a} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()}
-                 onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-12 h-14 bg-black/40 border border-white/10 rounded-xl text-center text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
+                 onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-10 h-12 md:w-12 md:h-14 bg-black/40 border border-white/10 rounded-xl text-center text-lg md:text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
              </>
           )}
 
-          <div className="flex flex-col items-center justify-center w-5 h-full ml-1">
+          <div className="flex flex-col items-center justify-center w-4 md:w-5 h-full ml-1">
              {!locked && hasStartedTyping && (
-                isComplete ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : <X className="w-5 h-5 text-rose-500" />
+                isComplete ? <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" /> : <X className="w-4 h-4 md:w-5 md:h-5 text-rose-500" />
              )}
           </div>
         </div>
         
         <div className="flex-1 flex flex-col items-center gap-2 overflow-hidden">
-          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-10 h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-10 h-6 text-slate-700" />}
-          <span className={`font-black text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.away_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.away_team}</span>
+          {getFlag(match.away_team) ? <img src={getFlag(match.away_team)!} className="w-8 h-5 md:w-10 md:h-6 object-cover rounded shadow-md" alt="" /> : <Users className="w-8 h-5 md:w-10 md:h-6 text-slate-700" />}
+          <span className={`font-black text-[10px] md:text-xs uppercase text-center truncate w-full tracking-tight ${!getFlag(match.away_team) ? "text-slate-500 italic text-[10px]" : ""}`}>{match.away_team}</span>
         </div>
       </div>
 
@@ -1057,29 +1066,29 @@ function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isComplet
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <CountdownTimer targetDate={TOURNAMENT_START} label="Bonus Predictions Lock In" />
-      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12 shadow-xl">
-        <div className="flex justify-between items-start mb-2 border-b border-white/5 pb-4">
-          <h2 className="text-emerald-400 font-black text-4xl uppercase italic tracking-tighter shadow-emerald-500/10">Bonus Predictions</h2>
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-12 shadow-xl">
+        <div className="flex flex-col md:flex-row md:justify-between items-start mb-2 border-b border-white/5 pb-4 gap-4">
+          <h2 className="text-emerald-400 font-black text-3xl md:text-4xl uppercase italic tracking-tighter shadow-emerald-500/10">Bonus Predictions</h2>
           {isPermanentlyLocked && <span className="bg-rose-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 animate-pulse shadow-md"><Lock className="w-3 h-3"/> Locked</span>}
         </div>
-        <p className="text-slate-400 text-sm font-bold my-10 uppercase tracking-widest italic leading-relaxed">Put your football brain to the test and predict the following:</p>
-        <div className="space-y-10">
+        <p className="text-slate-400 text-xs md:text-sm font-bold my-8 md:my-10 uppercase tracking-widest italic leading-relaxed">Put your football brain to the test and predict the following:</p>
+        <div className="space-y-8 md:space-y-10">
           <BonusField label="Golden Boot: Who will score the most goals in the tournament?" points="5 points" value={form.scorer} onChange={(v: any) => setForm({...form, scorer: v})} disabled={isPermanentlyLocked} />
           <BonusField label="Assist King: Who will provide the most assists?" points="5 points" value={form.assister} onChange={(v: any) => setForm({...form, assister: v})} disabled={isPermanentlyLocked} />
           <div>
-            <div className="flex justify-between items-center mb-3 ml-1"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Card Magnets: Which team will collect the most cards?</p><span className="text-[10px] font-black text-emerald-400">5 points</span></div>
-            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold disabled:opacity-50">
+            <div className="flex justify-between items-center mb-3 ml-1"><p className="text-[10px] md:text-[11px] font-black text-slate-500 uppercase tracking-widest">Card Magnets: Which team will collect the most cards?</p><span className="text-[10px] font-black text-emerald-400 whitespace-nowrap ml-2">5 points</span></div>
+            <select disabled={isPermanentlyLocked} value={form.cards} onChange={(e) => setForm({...form, cards: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 md:px-6 py-4 md:py-5 text-sm md:text-base text-white focus:border-emerald-400 outline-none font-bold disabled:opacity-50">
               <option value="">Select Country</option>
               {FULL_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <BonusField label="Tournament MVP: Who will be crowned player of the tournament?" points="5 points" value={form.mvp} onChange={(v: any) => setForm({...form, mvp: v})} disabled={isPermanentlyLocked} />
           <div>
-            <div className="flex justify-between items-end mb-3 ml-1">
-              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Goal Rush: How many goals will be scored in total during the tournament? (including extra time, excluding penalty shootouts)</p>
-              <div className="text-right text-[10px] font-black text-emerald-400 leading-tight whitespace-nowrap">Closest guess: 5 pts <br/> Exactly right: 10 pts</div>
+            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-end mb-3 ml-1 gap-2">
+              <p className="text-[10px] md:text-[11px] font-black text-slate-500 uppercase tracking-widest leading-tight pr-4">Goal Rush: How many goals will be scored in total during the tournament? (including extra time, excluding penalty shootouts)</p>
+              <div className="text-left md:text-right text-[10px] font-black text-emerald-400 leading-tight whitespace-nowrap">Closest guess: 5 pts <br/> Exactly right: 10 pts</div>
             </div>
-            <input type="number" value={form.goals} disabled={isPermanentlyLocked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
+            <input type="number" value={form.goals} disabled={isPermanentlyLocked} onChange={(e) => setForm({...form, goals: e.target.value.replace(/[^0-9]/g, "")})} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 md:px-6 py-4 md:py-5 text-sm md:text-base text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
           </div>
           {!isPermanentlyLocked && <button onClick={save} className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase mt-6 tracking-[0.2em] shadow-lg italic">Save & Unlock Matches</button>}
         </div>
@@ -1091,11 +1100,11 @@ function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isComplet
 function BonusField({ label, points, value, onChange, disabled, type="text" }: any) {
   return (
     <div>
-      <div className="flex justify-between items-center mb-3 ml-1">
-        <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
-        <span className="text-[10px] font-black text-emerald-400 whitespace-nowrap pl-4">{points}</span>
+      <div className="flex justify-between items-center mb-3 ml-1 gap-2">
+        <p className="text-[10px] md:text-[11px] font-black text-slate-500 uppercase tracking-widest leading-snug">{label}</p>
+        <span className="text-[10px] font-black text-emerald-400 whitespace-nowrap">{points}</span>
       </div>
-      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
+      <input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 md:px-6 py-4 md:py-5 text-sm md:text-base text-white focus:border-emerald-400 outline-none font-bold italic disabled:opacity-50 shadow-inner" />
     </div>
   );
 }
@@ -1124,13 +1133,13 @@ function CountdownTimer({ targetDate, label, isPending }: any) {
 
   return (
     <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col items-center mb-6 shadow-md shadow-emerald-500/5">
-      <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em] shadow-emerald-500/10">{label}</p>
+      <p className="text-[10px] font-black uppercase text-emerald-400 mb-2 tracking-[0.2em] shadow-emerald-500/10 text-center">{label}</p>
       {isPending ? (
         <span className="text-slate-500 font-black uppercase text-xs flex items-center gap-2 tracking-[0.2em]"><Lock className="w-3 h-3" /> Waiting...</span>
       ) : timeLeft === "LOCKED" ? (
         <span className="text-rose-500 font-black uppercase text-sm tracking-widest animate-pulse flex items-center gap-2"><Lock className="w-4 h-4"/> Locked</span>
       ) : timeLeft ? (
-        <div className="flex gap-4 text-white font-black italic shadow-emerald-500/10">
+        <div className="flex gap-3 md:gap-4 text-white font-black italic shadow-emerald-500/10">
           <TimeBlock unit="Days" val={timeLeft.d} /> <TimeBlock unit="Hours" val={timeLeft.h} /> <TimeBlock unit="Mins" val={timeLeft.m} /> <TimeBlock unit="Secs" val={timeLeft.s} />
         </div>
       ) : <span className="text-slate-600 font-black animate-pulse">...</span>}
@@ -1141,7 +1150,7 @@ function CountdownTimer({ targetDate, label, isPending }: any) {
 function TimeBlock({ unit, val }: any) {
   return (
     <div className="flex flex-col items-center">
-      <span className="text-2xl leading-none tabular-nums tracking-tighter">{val.toString().padStart(2, '0')}</span>
+      <span className="text-2xl md:text-3xl leading-none tabular-nums tracking-tighter">{val.toString().padStart(2, '0')}</span>
       <span className="text-[8px] text-slate-500 not-italic uppercase font-bold mt-1 tracking-widest">{unit}</span>
     </div>
   );
@@ -1152,14 +1161,14 @@ function Leaderboard() {
   useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).then(({ data }) => setList(data as any || [])); }, []);
   return (
     <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden max-w-5xl mx-auto shadow-xl">
-      <div className="p-5 bg-white/5 border-b border-white/5 flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap pl-6"><span>Player / Rank</span><span>Total Points</span></div>
+      <div className="p-4 md:p-5 bg-white/5 border-b border-white/5 flex justify-between text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap md:pl-6"><span>Player / Rank</span><span>Total Points</span></div>
       {list.map((p: any, i) => (
-        <div key={p.id} className={`p-6 flex justify-between items-center transition-colors hover:bg-white/5 ${i < 3 ? "bg-emerald-500/5" : ""}`}>
-          <div className="flex items-center gap-4">
-            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black shadow-md ${i === 0 ? "bg-amber-400 text-black shadow-amber-400/20" : i === 1 ? "bg-slate-400 text-black shadow-slate-400/20" : i === 2 ? "bg-orange-800 text-black shadow-orange-800/20" : "bg-white/10"}`}>{i + 1}</span>
-            <span className="font-black uppercase text-lg tracking-tight whitespace-nowrap">{p.username}</span>
+        <div key={p.id} className={`p-4 md:p-6 flex justify-between items-center transition-colors hover:bg-white/5 ${i < 3 ? "bg-emerald-500/5" : ""}`}>
+          <div className="flex items-center gap-3 md:gap-4">
+            <span className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-[11px] font-black shadow-md ${i === 0 ? "bg-amber-400 text-black shadow-amber-400/20" : i === 1 ? "bg-slate-400 text-black shadow-slate-400/20" : i === 2 ? "bg-orange-800 text-black shadow-orange-800/20" : "bg-white/10"}`}>{i + 1}</span>
+            <span className="font-black uppercase text-base md:text-lg tracking-tight whitespace-nowrap">{p.username}</span>
           </div>
-          <span className="text-amber-400 font-black text-2xl italic tabular-nums leading-none tracking-tight">{p.total_points}</span>
+          <span className="text-amber-400 font-black text-xl md:text-2xl italic tabular-nums leading-none tracking-tight">{p.total_points}</span>
         </div>
       ))}
     </div>
@@ -1170,9 +1179,9 @@ function RulesPage() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Lock It In */}
-      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
-        <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Clock className="w-5 h-5"/> Lock It In — Deadlines & Auto-Save</h3>
-        <ul className="space-y-3 text-[11px] text-slate-400 leading-relaxed">
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 shadow-xl">
+        <h3 className="text-emerald-400 font-black uppercase italic text-lg md:text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Clock className="w-5 h-5 flex-shrink-0"/> Lock It In — Deadlines & Auto-Save</h3>
+        <ul className="space-y-3 text-[10px] md:text-[11px] text-slate-400 leading-relaxed">
           <li className="bg-white/5 p-4 rounded-xl border border-white/5">
             <strong className="text-white">No "Submit" Button, Just Vibes:</strong> We use auto-save. Once you stop typing or click a button, your prediction is logged securely. Just look for the glorious green checkmark <CheckCircle className="inline w-3 h-3 text-emerald-400 mx-1"/> to confirm.
           </li>
@@ -1183,85 +1192,85 @@ function RulesPage() {
       </div>
 
       {/* Scoring Ladder */}
-      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
-        <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Target className="w-5 h-5"/> The Scoring Ladder</h3>
-        <p className="text-[11px] text-slate-400 mb-6 italic">Points get bigger as the tournament gets harder.</p>
-        <ul className="grid grid-cols-1 gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 shadow-xl">
+        <h3 className="text-emerald-400 font-black uppercase italic text-lg md:text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Target className="w-5 h-5 flex-shrink-0"/> The Scoring Ladder</h3>
+        <p className="text-[10px] md:text-[11px] text-slate-400 mb-6 italic">Points get bigger as the tournament gets harder.</p>
+        <ul className="grid grid-cols-1 gap-4 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">
           <li className="bg-white/5 p-4 rounded-xl border border-white/5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-              <span className="text-white block mb-1 md:mb-0">Group Stage — Pick the 90-min outcome (1X2)</span>
-              <span className="text-emerald-400">Correct Outcome = 1 pt</span>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-2">
+              <span className="text-white block">Group Stage — Pick the 90-min outcome (1X2)</span>
+              <span className="text-emerald-400 text-left md:text-right">Correct Outcome = 1 pt</span>
             </div>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-              <span className="text-white block mb-1 md:mb-0">Round of 32 — Pick the advancing team</span>
-              <span className="text-emerald-400">Correct Advancing Team = 2 pts</span>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-2">
+              <span className="text-white block">Round of 32 — Pick the advancing team</span>
+              <span className="text-emerald-400 text-left md:text-right">Correct Advancing Team = 2 pts</span>
             </div>
-            <p className="text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">No draws allowed here — penalties count!</p>
+            <p className="text-[8px] md:text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">No draws allowed here — penalties count!</p>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-              <span className="text-white block mb-1 md:mb-0">Round of 16 — Exact scoreline at 120 min</span>
-              <span className="text-emerald-400">3 pts Outcome / 5 pts Perfect</span>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-2">
+              <span className="text-white block">Round of 16 — Exact scoreline at 120 min</span>
+              <span className="text-emerald-400 text-left md:text-right">3 pts Outcome / 5 pts Perfect</span>
             </div>
-            <p className="text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: predicting a draw? You must pick the penalty winner to get Outcome points.</p>
+            <p className="text-[8px] md:text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: predicting a draw? You must pick the penalty winner to get Outcome points.</p>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-              <span className="text-white block mb-1 md:mb-0">Quarter & Semi Finals — Same rules, higher stakes</span>
-              <span className="text-emerald-400">4 pts Outcome / 6 pts Perfect</span>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-2">
+              <span className="text-white block">Quarter & Semi Finals — Same rules, higher stakes</span>
+              <span className="text-emerald-400 text-left md:text-right">4 pts Outcome / 6 pts Perfect</span>
             </div>
-            <p className="text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: pick the penalty winner if you predict a draw score.</p>
+            <p className="text-[8px] md:text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: pick the penalty winner if you predict a draw score.</p>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-              <span className="text-white block mb-1 md:mb-0">Gold & Bronze Finals — The big one</span>
-              <span className="text-emerald-400">5 pts Outcome / 7 pts Perfect</span>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-2">
+              <span className="text-white block">Gold & Bronze Finals — The big one</span>
+              <span className="text-emerald-400 text-left md:text-right">5 pts Outcome / 7 pts Perfect</span>
             </div>
-            <p className="text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: pick the penalty winner if you predict a draw score.</p>
+            <p className="text-[8px] md:text-[9px] text-slate-500 normal-case tracking-normal mt-2 not-italic">Tie-breaker: pick the penalty winner if you predict a draw score.</p>
           </li>
         </ul>
-        <div className="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-2xl mt-6">
-          <p className="text-[11px] font-bold text-slate-400 leading-relaxed">
+        <div className="bg-emerald-500/5 border border-emerald-500/10 p-5 md:p-6 rounded-2xl mt-6">
+          <p className="text-[10px] md:text-[11px] font-bold text-slate-400 leading-relaxed">
             * <strong className="text-white">Outcome</strong> means correctly picking the winner of the match (or predicting a draw in the Group stage). In the knockout rounds from R16 onwards, if you think the match will go to penalties, predict a draw score and then choose the penalty winner to get Outcome points.<br/><br/>
             * <strong className="text-white">Perfect Score</strong> means correctly guessing the final scoreline. Perfect Score points supersede Outcome points (e.g., a Perfect Score in the Quarter Finals grants you 6 points total, not 10).
           </p>
         </div>
       </div>
 
-      {/* Tournament Deadlines (Corrected for Swedish CEST Time) */}
-      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
-        <h3 className="text-amber-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><AlertCircle className="w-5 h-5"/> Tournament Deadlines (Svensk Tid)</h3>
-        <ul className="space-y-3 text-[11px] text-slate-400">
+      {/* Tournament Deadlines (Translated to English) */}
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 shadow-xl">
+        <h3 className="text-amber-400 font-black uppercase italic text-lg md:text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><AlertCircle className="w-5 h-5 flex-shrink-0"/> Tournament Deadlines (CET/CEST)</h3>
+        <ul className="space-y-3 text-[10px] md:text-[11px] text-slate-400">
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Bonus & Group Stage</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">11 Juni 2026 · 21:00</span>
+            <span className="font-black text-white uppercase tracking-widest">Bonus & Group Stage</span>
+            <span className="text-amber-400 font-black tracking-widest uppercase">June 11, 2026 · 21:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Sextondelsfinaler (R32)</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">28 Juni 2026 · 21:00</span>
+            <span className="font-black text-white uppercase tracking-widest">Round of 32</span>
+            <span className="text-amber-400 font-black tracking-widest uppercase">June 28, 2026 · 21:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Åttondelsfinaler (R16)</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">4 Juli 2026 · 19:00</span>
+            <span className="font-black text-white uppercase tracking-widest">Round of 16</span>
+            <span className="text-amber-400 font-black tracking-widest uppercase">July 4, 2026 · 19:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Kvarts- & Semifinaler</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">9 Juli 2026 · 22:00</span>
+            <span className="font-black text-white uppercase tracking-widest">Quarter & Semi Finals</span>
+            <span className="text-amber-400 font-black tracking-widest uppercase">July 9, 2026 · 22:00</span>
           </li>
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <span className="font-black text-white uppercase tracking-widest text-[10px]">Bronsmatch & Final</span>
-            <span className="text-amber-400 font-black tracking-widest text-[10px] uppercase">18 Juli 2026 · 23:00</span>
+            <span className="font-black text-white uppercase tracking-widest">Bronze Match & Final</span>
+            <span className="text-amber-400 font-black tracking-widest uppercase">July 18, 2026 · 23:00</span>
           </li>
         </ul>
       </div>
 
       {/* Bonus Predictions */}
-      <div className="bg-white/5 border border-white/10 rounded-3xl p-8 shadow-xl">
-        <h3 className="text-emerald-400 font-black uppercase italic text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Sparkles className="w-5 h-5"/> Bonus Predictions <span className="text-[10px] text-slate-500 not-italic">(Locks 11 Juni)</span></h3>
-        <p className="text-[11px] text-slate-400 mb-6 italic">Nail these pre-tournament predictions for a massive point boost.</p>
-        <ul className="grid grid-cols-1 gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 shadow-xl">
+        <h3 className="text-emerald-400 font-black uppercase italic text-lg md:text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Sparkles className="w-5 h-5 flex-shrink-0"/> Bonus Predictions <span className="text-[10px] text-slate-500 not-italic">(Locks June 11)</span></h3>
+        <p className="text-[10px] md:text-[11px] text-slate-400 mb-6 italic">Nail these pre-tournament predictions for a massive point boost.</p>
+        <ul className="grid grid-cols-1 gap-3 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">
           <li className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <span className="text-white">🥾 Golden Boot — Most goals</span>
             <span className="text-emerald-400">5 pts</span>
