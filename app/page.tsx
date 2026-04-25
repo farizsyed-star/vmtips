@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target, CheckCircle, X, Info, RotateCcw, Plus, LogIn, ChevronLeft, Settings, Trash, UserCheck, Key } from "lucide-react";
 
@@ -16,8 +16,10 @@ const TEAM_ABBREVIATIONS: Record<string, string> = {
   "egypt": "EGY", "england": "ENG", "france": "FRA", "germany": "GER", "ghana": "GHA", 
   "haiti": "HAI", "iran": "IRN", "ir iran": "IRN", "iraq": "IRQ", "ivory coast": "CIV", "japan": "JPN", 
   "jordan": "JOR", "mexico": "MEX", "morocco": "MAR", "netherlands": "NED", "new zealand": "NZL", 
-  "norway": "NOR", "sweden": "SWE", "switzerland": "SUI", "türkiye": "TUR", "turkey": "TUR", "tunisia": "TUN", 
-  "usa": "USA", "united states": "USA", "uruguay": "URU", "uzbekistan": "UZB", "panama": "PAN", "paraguay": "PAR", "portugal": "POR", "qatar": "QAT", "saudi arabia": "KSA", "scotland": "SCO", "senegal": "SEN", "south africa": "RSA", "south korea": "KOR", "spain": "ESP", "serbia": "SRB"
+  "norway": "NOR", "panama": "PAN", "paraguay": "PAR", "portugal": "POR", "qatar": "QAT", 
+  "saudi arabia": "KSA", "scotland": "SCO", "senegal": "SEN", "serbia": "SRB", "south africa": "RSA", 
+  "south korea": "KOR", "spain": "ESP", "sweden": "SWE", "switzerland": "SUI", "türkiye": "TUR", 
+  "turkey": "TUR", "tunisia": "TUN", "usa": "USA", "united states": "USA", "uruguay": "URU", "uzbekistan": "UZB"
 };
 
 const FULL_COUNTRIES = [
@@ -52,9 +54,9 @@ const getFlag = (team: any) => {
     "haiti": "ht", "iran": "ir", "ir iran": "ir", "iraq": "iq", "ivory coast": "ci", "japan": "jp",
     "jordan": "jo", "mexico": "mx", "morocco": "ma", "netherlands": "nl", "new zealand": "nz",
     "norway": "no", "panama": "pa", "paraguay": "py", "portugal": "pt", "qatar": "qa",
-    "saudi arabia": "sa", "scotland": "gb-sct", "senegal": "sn", "south africa": "za", "south korea": "kr",
-    "spain": "es", "sweden": "se", "switzerland": "ch", "türkiye": "tr", "turkey": "tr", "tunisia": "tn",
-    "usa": "us", "united states": "us", "uruguay": "uy", "uzbekistan": "uz", "serbia": "rs"
+    "saudi arabia": "sa", "scotland": "gb-sct", "senegal": "sn", "serbia": "rs", "south africa": "za", 
+    "south korea": "kr", "spain": "es", "sweden": "se", "switzerland": "ch", "türkiye": "tr", 
+    "turkey": "tr", "tunisia": "tn", "usa": "us", "united states": "us", "uruguay": "uy", "uzbekistan": "uz"
   };
   const code = map[name];
   return code ? `https://flagcdn.com/w40/${code}.png` : null;
@@ -233,7 +235,7 @@ export default function WorldCupApp() {
   );
 }
 
-// --- LEAGUES HUB & DETAILS ---
+// --- LEAGUES HUB ---
 function LeaguesPage({ userId }: { userId: string }) {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [activeLeagueId, setActiveLeagueId] = useState<string | null>(null);
@@ -485,6 +487,7 @@ function LeagueSettings({ leagueData, members, userId, refresh }: any) {
   );
 }
 
+// --- STATS PAGE ---
 function StatsPage({ matches }: { matches: any[] }) {
   const [subTab, setSubTab] = useState(1);
   const [players, setPlayers] = useState<any[]>([]);
@@ -495,9 +498,9 @@ function StatsPage({ matches }: { matches: any[] }) {
     <div className="space-y-6">
       <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
-          <button onClick={() => setSubTab(1)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
-          <button onClick={() => setSubTab(2)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
-          <button onClick={() => setSubTab(3)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
+          <button onClick={() => setSubTab(1)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
+          <button onClick={() => setSubTab(2)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
+          <button onClick={() => setSubTab(3)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
         </div>
       </div>
       {subTab === 1 && <StandingsTable matches={matches} />}
@@ -766,6 +769,7 @@ function TopPerformers({ players }: { players: any[] }) {
   );
 }
 
+// --- UPGRADED ADMIN PANEL ---
 function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
   const [adminTab, setAdminTab] = useState<'unsettled' | 'settled'>('unsettled');
   const [scores, setScores] = useState<any>({});
@@ -780,7 +784,8 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
   };
   const addPlayer = async () => {
     if (!newPlayer.name || !newPlayer.team) return alert("Fill in name and team!");
-    const { error } = await supabase.from("tournament_players").insert(newPlayer);
+    // FIXED: Switched to upsert so existing players can be updated correctly.
+    const { error } = await supabase.from("tournament_players").upsert(newPlayer, { onConflict: 'name,team' });
     if(error) alert(error.message);
     else { alert("Player added/updated!"); setNewPlayer({ name: "", team: "", goals: 0, assists: 0 }); }
   };
@@ -1133,27 +1138,47 @@ function PhaseTab({ id, label, active, onClick }: any) {
 function MatchCard({ match, userId, locked, isPending }: any) {
   const [pred, setPred] = useState({ h: "", a: "", pw: "" });
   const [initialLoad, setInitialLoad] = useState(true);
+  // FIXED: Added a dirty flag to prevent redundant Supabase writes on initial load.
+  const isDirty = useRef(false);
+
   useEffect(() => {
     supabase.from("predictions").select("*").eq("user_id", userId).eq("match_id", match.id).single().then(({ data }) => {
       if (data) setPred({ h: data.pred_home.toString(), a: data.pred_away.toString(), pw: data.penalty_winner_pred || "" });
       setInitialLoad(false);
+      isDirty.current = false; // Reset after initial load
     });
   }, [match.id, userId]);
+
   useEffect(() => {
-    if (initialLoad || locked || pred.h === "" || pred.a === "") return;
+    // FIXED: Only save if user has actually interacted with this card.
+    if (initialLoad || locked || !isDirty.current || pred.h === "" || pred.a === "") return;
     const timer = setTimeout(async () => {
-      await supabase.from("predictions").upsert({ user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw }, { onConflict: 'user_id,match_id' });
+      const { error } = await supabase.from("predictions").upsert({ 
+        user_id: userId, match_id: match.id, pred_home: parseInt(pred.h), pred_away: parseInt(pred.a), penalty_winner_pred: pred.pw 
+      }, { onConflict: 'user_id,match_id' });
+      // FIXED: Added error handling for failed saves.
+      if (error) console.error("Auto-save failed:", error.message);
     }, 500); 
     return () => clearTimeout(timer);
   }, [pred, initialLoad, locked, match.id, userId]);
+
   const isGroup = match.sub_phase === 'group';
   const isR32 = match.sub_phase === 'r32';
+  const isExactScore = !isGroup && !isR32;
+
+  const updatePred = (update: Partial<typeof pred>) => {
+    isDirty.current = true;
+    setPred(prev => ({ ...prev, ...update }));
+  };
+
   const active1X2 = (pred.h !== "" && pred.a !== "") ? (parseInt(pred.h) > parseInt(pred.a) ? '1' : parseInt(pred.h) < parseInt(pred.a) ? '2' : 'X') : null;
   const r32Pick = isR32 && pred.h !== "" && pred.a !== "" ? (parseInt(pred.h) > parseInt(pred.a) ? 'home' : 'away') : null;
   const isDraw = pred.h !== "" && pred.a !== "" && pred.h === pred.a;
-  const needsPw = !isGroup && !isR32 && match.phase > 1 && isDraw;
+  // FIXED: Check robustly against sub_phase instead of match.phase
+  const needsPw = isExactScore && isDraw;
   const isComplete = isR32 ? r32Pick !== null : (pred.h !== "" && pred.a !== "" && (!needsPw || pred.pw !== ""));
   const hasStartedTyping = pred.h !== "" || pred.a !== "";
+
   return (
     <div className={`bg-white/5 border rounded-2xl p-6 transition-all relative ${locked ? "border-white/5 opacity-60 grayscale-[0.5]" : "border-white/10 hover:border-emerald-500/30"}`}>
       {match.settled && <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[9px] font-black px-3 py-1 rounded-bl-xl rounded-tr-2xl uppercase tracking-widest shadow-sm z-10">FT: {match.home_score} - {match.away_score}{match.penalty_winner_actual ? ` (${match.penalty_winner_actual === 'home' ? getTeamLabel(match.home_team) : getTeamLabel(match.away_team)} pens)` : ''}</div>}
@@ -1173,19 +1198,19 @@ function MatchCard({ match, userId, locked, isPending }: any) {
         <div className="flex items-center justify-center gap-1 md:gap-2">
           {isGroup ? (
              <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-12 md:h-14">
-               <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all ${active1X2 === '1' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>1</button>
-               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '0', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all ${active1X2 === 'X' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>X</button>
-               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all ${active1X2 === '2' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>2</button>
+               <button disabled={locked} onClick={() => updatePred({h: '1', a: '0', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all ${active1X2 === '1' ? "bg-emerald-500 text-black shadow-md" : "text-slate-400 hover:text-white"}`}>1</button>
+               <button disabled={locked} onClick={() => updatePred({h: '0', a: '0', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all ${active1X2 === 'X' ? "bg-emerald-500 text-black shadow-md" : "text-slate-400 hover:text-white"}`}>X</button>
+               <button disabled={locked} onClick={() => updatePred({h: '0', a: '1', pw: ''})} className={`w-6 md:w-8 h-full rounded-lg text-[10px] font-black transition-all ${active1X2 === '2' ? "bg-emerald-500 text-black shadow-md" : "text-slate-400 hover:text-white"}`}>2</button>
              </div>
           ) : isR32 ? (
              <div className="flex items-center justify-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner h-12 md:h-14 max-w-[120px] md:max-w-none">
-               <button disabled={locked} onClick={() => setPred({...pred, h: '1', a: '0', pw: ''})} className={`px-2 md:px-3 h-full rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all ${r32Pick === 'home' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>{getTeamLabel(match.home_team)} ▶</button>
-               <button disabled={locked} onClick={() => setPred({...pred, h: '0', a: '1', pw: ''})} className={`px-2 md:px-3 h-full rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all ${r32Pick === 'away' ? 'bg-emerald-500 text-black shadow-md' : 'text-slate-400 hover:text-white'}`}>◀ {getTeamLabel(match.away_team)}</button>
+               <button disabled={locked} onClick={() => updatePred({h: '1', a: '0', pw: ''})} className={`px-2 md:px-3 h-full rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all ${r32Pick === 'home' ? "bg-emerald-500 text-black shadow-md" : "text-slate-400 hover:text-white"}`}>{getTeamLabel(match.home_team)} ▶</button>
+               <button disabled={locked} onClick={() => updatePred({h: '0', a: '1', pw: ''})} className={`px-2 md:px-3 h-full rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all ${r32Pick === 'away' ? "bg-emerald-500 text-black shadow-md" : "text-slate-400 hover:text-white"}`}>◀ {getTeamLabel(match.away_team)}</button>
              </div>
           ) : (
              <>
-               <input type="number" min="0" disabled={locked} value={pred.h} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} onChange={(e) => setPred({...pred, h: e.target.value.replace(/[^0-9]/g, "")})} className="w-10 h-12 md:w-12 md:h-14 bg-black/40 border border-white/10 rounded-xl text-center text-lg md:text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
-               <input type="number" min="0" disabled={locked} value={pred.a} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} onChange={(e) => setPred({...pred, a: e.target.value.replace(/[^0-9]/g, "")})} className="w-10 h-12 md:w-12 md:h-14 bg-black/40 border border-white/10 rounded-xl text-center text-lg md:text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
+               <input type="number" min="0" disabled={locked} value={pred.h} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} onChange={(e) => updatePred({h: e.target.value.replace(/[^0-9]/g, "")})} className="w-10 h-12 md:w-12 md:h-14 bg-black/40 border border-white/10 rounded-xl text-center text-lg md:text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
+               <input type="number" min="0" disabled={locked} value={pred.a} onKeyDown={(e) => (e.key === '-' || e.key === 'e') && e.preventDefault()} onChange={(e) => updatePred({a: e.target.value.replace(/[^0-9]/g, "")})} className="w-10 h-12 md:w-12 md:h-14 bg-black/40 border border-white/10 rounded-xl text-center text-lg md:text-xl font-black text-white focus:border-emerald-400 outline-none shadow-inner disabled:text-slate-500" placeholder="-" />
              </>
           )}
           <div className="flex flex-col items-center justify-center w-4 md:w-5 h-full ml-1">
@@ -1201,8 +1226,8 @@ function MatchCard({ match, userId, locked, isPending }: any) {
         <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center">
           <p className="text-[9px] font-black text-slate-500 uppercase mb-2 italic">Penalty Winner <span className="text-rose-500">* Required</span></p>
           <div className="flex gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
-            <button onClick={() => setPred({...pred, pw: 'home'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
-            <button onClick={() => setPred({...pred, pw: 'away'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
+            <button onClick={() => updatePred({pw: 'home'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'home' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.home_team}</button>
+            <button onClick={() => updatePred({pw: 'away'})} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${pred.pw === 'away' ? "bg-emerald-500 text-black shadow-lg" : "text-slate-500"}`}>{match.away_team}</button>
           </div>
         </div>
       )}
@@ -1218,7 +1243,10 @@ function BonusPage({ userId, isCompleted, onSaved }: { userId: string, isComplet
     supabase.from("bonus_predictions").select("*").eq("user_id", userId).single().then(({ data }) => { if (data) setForm({ scorer: data.top_scorer, assister: data.top_assister, cards: data.most_cards_team, mvp: data.mvp, goals: data.total_goals_guess?.toString() || "" }); setLoading(false); });
   }, [userId]);
   const save = async () => {
-    if (isPermanentlyLocked || !form.goals) return;
+    // FIXED: Added validation to ensure ALL fields are filled before saving.
+    if (isPermanentlyLocked || !form.scorer || !form.assister || !form.cards || !form.mvp || !form.goals) {
+      return alert("Please fill in all predictions before saving!");
+    }
     await supabase.from("bonus_predictions").upsert({ user_id: userId, top_scorer: form.scorer, top_assister: form.assister, most_cards_team: form.cards, mvp: form.mvp, total_goals_guess: parseInt(form.goals) });
     onSaved();
   };
@@ -1380,10 +1408,13 @@ function AuthScreen() {
     <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
       <div className="w-full max-w-sm text-center">
         <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-        <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic leading-none">World Cup '26<br/><span className="text-emerald-400 text-2xl tracking-widest block mt-2">Couch Potato Edition</span></h1>
+        <h1 className="text-5xl font-black text-white mb-2 tracking-tighter uppercase italic leading-none shadow-emerald-500/10">
+          World Cup '26<br/>
+          <span className="text-emerald-400 text-2xl tracking-widest block mt-2">Couch Potato Edition</span>
+        </h1>
         <form onSubmit={handle} className="mt-8 space-y-3">
-          <input type="email" placeholder="Email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold shadow-inner" onChange={(e) => setForm({...form, e: e.target.value})} />
-          <input type="password" placeholder="Password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold shadow-inner" onChange={(e) => setForm({...form, p: e.target.value})} />
+          <input type="email" placeholder="Email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold focus:bg-emerald-500/5 shadow-inner" onChange={(e) => setForm({...form, e: e.target.value})} />
+          <input type="password" placeholder="Password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none focus:border-emerald-400 font-bold focus:bg-emerald-500/5 shadow-inner" onChange={(e) => setForm({...form, p: e.target.value})} />
           <button type="submit" className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase tracking-[0.2em] shadow-md hover:scale-[1.02] transition-transform italic text-xs">{mode === 'login' ? 'Sign In' : 'Create Account'}</button>
         </form>
         {err && <p className="text-rose-400 text-[10px] font-bold mt-4 uppercase animate-pulse">{err}</p>}
@@ -1403,14 +1434,41 @@ function UsernameSetup({ userId, onComplete }: any) {
   return (
     <div className="min-h-screen bg-[#07090d] grid place-items-center p-4">
       <div className="text-center w-full max-w-sm">
-        <h2 className="text-2xl font-black text-white mb-6 uppercase italic tracking-widest underline decoration-emerald-500/10 leading-none">Choose Player Name</h2>
-        <input type="text" placeholder="e.g. Zlatan" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center focus:border-emerald-400 outline-none font-bold italic shadow-inner" />
+        <h2 className="text-2xl font-black text-white mb-6 uppercase italic tracking-widest underline decoration-emerald-500/10 shadow-emerald-500/10 leading-none">Choose Player Name</h2>
+        <input type="text" placeholder="e.g. Zlatan" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center focus:border-emerald-400 focus:bg-emerald-500/5 outline-none font-bold italic shadow-inner" />
         <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase mt-6 shadow-lg tracking-[0.2em] italic hover:scale-[1.02] transition-transform text-xs">Start Tournament</button>
       </div>
     </div>
   );
 }
 
+function WelcomePopup({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl grid place-items-center p-6">
+      <div className="bg-[#0f1117] border border-white/10 rounded-[2.5rem] p-10 max-w-md w-full relative shadow-2xl text-center">
+        <Sparkles className="text-amber-400 w-12 h-12 mb-6 mx-auto animate-pulse" />
+        <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter mb-4 leading-none">
+          Welcome to <br/>
+          <span className="text-emerald-400">World Cup '26</span><br/>
+          <span className="text-xl tracking-widest text-slate-300 mt-2 block">Couch Potato Edition</span>
+        </h2>
+        <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-6 text-left">
+          <p className="font-bold text-center">Here is how the prediction league works:</p>
+          <div className="space-y-4 mt-6">
+            <p className="text-[11px] leading-relaxed"><strong className="text-amber-400">Bonus (Locks June 11):</strong> Predict tournament stats. Must be completed first!</p>
+            <p className="text-[11px] leading-relaxed"><strong className="text-white">Group Stage & R32:</strong> Predict outcomes (1X2) for all matches.</p>
+            <p className="text-[11px] leading-relaxed"><strong className="text-white">Knockouts (R16 onwards):</strong> Predict exact scores. Locks when the first game of that round starts.</p>
+            <p className="text-[11px] leading-relaxed"><strong className="text-blue-400">Private Leagues:</strong> Head to the Leagues tab to create or join a mini-league with your friends. Your points count toward both the global and private leaderboards!</p>
+            <p className="text-[11px] italic text-center mt-8">Check out the <strong className="text-white">Rules</strong> tab for the full scoring system.</p>
+          </div>
+        </div>
+        <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all shadow-md">Let's Get Started</button>
+      </div>
+    </div>
+  );
+}
+
+// Side Leaderboard Component (Global)
 function MiniLeaderboard({ setView }: any) {
   const [list, setList] = useState([]);
   useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).limit(5).then(({ data }) => setList(data as any || [])); }, []);
@@ -1431,6 +1489,7 @@ function MiniLeaderboard({ setView }: any) {
   );
 }
 
+// Side Leaderboard Component (Pinned Private League)
 function PinnedLeagueLeaderboard({ userId, setView }: any) {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [pinnedId, setPinnedId] = useState<string>("");
@@ -1483,6 +1542,102 @@ function PinnedLeagueLeaderboard({ userId, setView }: any) {
           <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setView('leagues'); }} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">Manage Leagues</button>
         </div>
       )}
+    </div>
+  );
+}
+
+function MatchList({ matches, tab, setTab, userId, setView }: any) {
+  const now = new Date();
+  let lockTime: Date | null = null;
+  let isPending = false;
+  let matchesLocked = false;
+  let filtered = [];
+  if (tab === 6) {
+    lockTime = null; matchesLocked = true; 
+    filtered = matches.filter((m: any) => m.settled).sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime()); 
+  } else {
+    const groupEnd = matches.filter((m: any) => m?.sub_phase === 'group').slice(-1)[0];
+    const r32End = matches.filter((m: any) => m?.sub_phase === 'r32').slice(-1)[0];
+    const r16End = matches.filter((m: any) => m?.sub_phase === 'r16').slice(-1)[0];
+    const sfEnd = matches.filter((m: any) => m?.sub_phase === 'semi').slice(-1)[0];
+    const firstR32 = matches.find((m: any) => m?.sub_phase === 'r32');
+    const firstR16 = matches.find((m: any) => m?.sub_phase === 'r16');
+    const firstQF = matches.find((m: any) => m?.sub_phase === 'quarter');
+    const firstFinal = matches.find((m: any) => m?.sub_phase === 'bronze' || m?.sub_phase === 'final');
+    if (tab === 1) { 
+      lockTime = TOURNAMENT_START; matchesLocked = now > TOURNAMENT_START; 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'group' && !m.settled); 
+    } 
+    else if (tab === 2) { 
+      if (groupEnd && now < new Date(groupEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR32 ? new Date(firstR32.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'r32' && !m.settled); 
+    } 
+    else if (tab === 3) { 
+      if (r32End && now < new Date(r32End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstR16 ? new Date(firstR16.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => m?.sub_phase === 'r16' && !m.settled); 
+    } 
+    else if (tab === 4) { 
+      if (r16End && now < new Date(r16End.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstQF ? new Date(firstQF.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => (m?.sub_phase === 'quarter' || m?.sub_phase === 'semi') && !m.settled); 
+    } 
+    else if (tab === 5) { 
+      if (sfEnd && now < new Date(sfEnd.kickoff_time)) { isPending = true; matchesLocked = true; } else { lockTime = firstFinal ? new Date(firstFinal.kickoff_time) : null; matchesLocked = lockTime ? now > lockTime : true; } 
+      filtered = matches.filter((m: any) => (m?.sub_phase === 'bronze' || m?.sub_phase === 'final') && !m.settled); 
+    }
+  }
+  const roundLabels = ["", "Group Stage", "Round of 32", "Round of 16", "Quarter & Semi Finals", "Bronze Match & Final", "Results"];
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 items-start">
+      <div className="hidden lg:block sticky top-[100px]"><HowToPlaySidebar tab={tab} /></div>
+      <div className="col-span-1 lg:col-span-4">
+        <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-2 mb-6 -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide">
+            <PhaseTab id={1} label="Group Stage" active={tab === 1} onClick={setTab} />
+            <PhaseTab id={2} label="Round of 32" active={tab === 2} onClick={setTab} />
+            <PhaseTab id={3} label="Round of 16" active={tab === 3} onClick={setTab} />
+            <PhaseTab id={4} label="Quarter & Semi Finals" active={tab === 4} onClick={setTab} />
+            <PhaseTab id={5} label="Bronze Match & Final" active={tab === 5} onClick={setTab} />
+            <PhaseTab id={6} label="Results" active={tab === 6} onClick={setTab} />
+          </div>
+        </div>
+        {tab !== 6 && <CountdownTimer targetDate={lockTime} label={`Locking ${roundLabels[tab]} in`} isPending={isPending} />}
+        <div className="grid gap-4">
+          {filtered.map((m: any) => <MatchCard key={m.id} match={m} userId={userId} locked={matchesLocked} isPending={isPending} />)}
+          {filtered.length === 0 && (
+            <div className="py-20 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest italic">
+               {tab === 6 ? "No matches have finished yet." : !isPending ? "No matches remaining in this round." : "Waiting for previous round..."}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
+        <h3 className="text-amber-400 font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-xs"><Trophy className="w-4 h-4"/> Global Top 5 Leaders</h3>
+        <MiniLeaderboard setView={setView} />
+        <PinnedLeagueLeaderboard userId={userId} setView={setView} />
+      </div>
+    </div>
+  );
+}
+
+function HowToPlaySidebar({ tab }: { tab: number }) {
+  const content: Record<number, { howTo: React.ReactNode; tip: React.ReactNode }> = {
+    1: { howTo: <>Keep it simple for the group stages. Just predict the 90-minute outcome: Home Win <strong className="text-white">(1)</strong>, Draw <strong className="text-white">(X)</strong>, or Away Win <strong className="text-white">(2)</strong>.</>, tip: <>Slow and steady. You get <strong className="text-white">1 point</strong> for every correct outcome.</> },
+    2: { howTo: <>The knockouts begin! Predict which team will <strong className="text-white">advance</strong> to the next round, regardless of whether they win in regular time, extra time, or on penalties.</>, tip: <>The stakes are higher now. You get <strong className="text-white">2 points</strong> for picking the correct advancing team.</> },
+    3: { howTo: <>Time to get specific. Enter your predicted <strong className="text-white">exact scoreline</strong>. If you think the match will go to penalties, predict a draw score and then choose the advancing team.</>, tip: <>You get <strong className="text-white">3 points</strong> for the correct outcome, but if you nail the exact scoreline, you get a massive <strong className="text-white">5 points</strong>!</> },
+    4: { howTo: <>The pressure is on! Enter your predicted <strong className="text-white">exact scoreline</strong>. If you think the match will go to penalties, predict a draw score and then choose the advancing team.</>, tip: <>You get <strong className="text-white">4 points</strong> for the correct outcome. Predict the exact scoreline perfectly to score <strong className="text-white">6 points</strong> instead!</> },
+    5: { howTo: <>Ultimate bragging rights are on the line. Enter your predicted <strong className="text-white">exact scoreline</strong>. If you think the match will go to penalties, predict a draw score and then choose the advancing team.</>, tip: <>You get <strong className="text-white">5 points</strong> for the correct outcome. Nail the exact scoreline for the maximum <strong className="text-white">7 points</strong>!</> },
+    6: { howTo: <>The dust has settled. This tab shows all the completed matches, their official final scores, and who won on penalties.</>, tip: <>Matches move here once settled. Check the <strong className="text-white">Leaderboard</strong> tab to see how these results impacted your ranking!</> }
+  };
+  const c = content[tab] || content[1];
+  return (
+    <div className="bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
+      <h3 className="text-emerald-400 font-black uppercase tracking-widest mb-4 flex items-center gap-2 text-xs"><Info className="w-4 h-4"/> How to Play</h3>
+      <p className="text-[11px] text-slate-400 leading-relaxed mb-4">{c.howTo}</p>
+      {tab !== 6 && <p className="text-[11px] text-slate-400 leading-relaxed mb-6">Auto-save is enabled. Look for the <CheckCircle className="inline w-3 h-3 text-emerald-400 mx-1"/> to confirm your prediction.</p>}
+      <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-xl">
+        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Goal className="w-3 h-3"/> Scoring Tip</p>
+        <p className="text-[10px] text-slate-400 leading-relaxed">{c.tip}</p>
+      </div>
     </div>
   );
 }
