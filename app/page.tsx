@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target, CheckCircle, X, Info, RotateCcw } from "lucide-react";
+import { Trophy, Shield, LogOut, Clock, Globe, AlertCircle, Lock, Users, Sparkles, Goal, Star, Target, CheckCircle, X, Info, RotateCcw, Plus, LogIn, ChevronLeft, Settings, Trash, UserCheck, Key } from "lucide-react";
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 const ADMIN_EMAIL = "fariz.syed@gmail.com";
@@ -85,7 +85,7 @@ export default function WorldCupApp() {
     const { data } = await supabase.from("bonus_predictions").select("user_id").eq("user_id", id).maybeSingle();
     if (data) {
       setBonusCompleted(true);
-      // Only set to matches if we are in the initial loading state. This fixes the tab-switch bug!
+      // Only set to matches if we are in the initial loading state.
       setView((prev) => (prev === "loading" ? "matches" : prev));
     } else {
       setBonusCompleted(false);
@@ -218,8 +218,9 @@ export default function WorldCupApp() {
             {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
           </button>
           <NavBtn active={view === "bonus"} onClick={() => setView("bonus")} label="Bonus" />
+          <NavBtn active={view === "leagues"} onClick={() => setView("leagues")} label="Leagues" />
           <NavBtn active={view === "stats"} onClick={() => setView("stats")} label="Stats" />
-          <NavBtn active={view === "leaderboard"} onClick={() => setView("leaderboard")} label="Leaderboard" />
+          <NavBtn active={view === "leaderboard"} onClick={() => setView("leaderboard")} label="Global" />
           <NavBtn active={view === "rules"} onClick={() => setView("rules")} label="Rules" />
         </nav>
       </div>
@@ -228,11 +229,299 @@ export default function WorldCupApp() {
       <main className="max-w-[1400px] mx-auto px-4 mt-6">
         {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} />}
         {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => { setBonusCompleted(true); setView("matches"); }} />}
+        {view === "leagues" && <LeaguesPage userId={user.id} />}
         {view === "stats" && <StatsPage matches={matches} />}
         {view === "leaderboard" && <Leaderboard />}
         {view === "rules" && <RulesPage />}
         {view === "admin" && <AdminPanel matches={matches} syncFromAPI={syncFromAPI} refreshMatches={refreshMatches} />}
       </main>
+    </div>
+  );
+}
+
+// --- LEAGUES HUB & DETAILS ---
+function LeaguesPage({ userId }: { userId: string }) {
+  const [leagues, setLeagues] = useState<any[]>([]);
+  const [activeLeagueId, setActiveLeagueId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Create / Join State
+  const [showCreate, setShowCreate] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
+  const [newLeagueName, setNewLeagueName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+
+  const fetchMyLeagues = async () => {
+    setLoading(true);
+    const { data: memberData } = await supabase.from('league_members').select('league_id, role').eq('user_id', userId);
+    
+    if (memberData && memberData.length > 0) {
+      const leagueIds = memberData.map(m => m.league_id);
+      const { data: leagueData } = await supabase.from('leagues').select('*').in('id', leagueIds);
+      
+      // Merge roles into league data for the UI
+      const merged = leagueData?.map(l => ({
+        ...l,
+        myRole: memberData.find(m => m.league_id === l.id)?.role
+      })) || [];
+      setLeagues(merged);
+    } else {
+      setLeagues([]);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (!activeLeagueId) fetchMyLeagues();
+  }, [activeLeagueId]);
+
+  const generateInviteCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
+
+  const handleCreateLeague = async () => {
+    if (!newLeagueName.trim()) return alert("Enter a league name!");
+    const code = generateInviteCode();
+    
+    const { data, error } = await supabase.from('leagues').insert({
+      name: newLeagueName,
+      invite_code: code,
+      created_by: userId
+    }).select().single();
+
+    if (error) return alert("Error creating league.");
+
+    // Add creator as Admin
+    await supabase.from('league_members').insert({
+      league_id: data.id,
+      user_id: userId,
+      role: 'admin'
+    });
+
+    setNewLeagueName("");
+    setShowCreate(false);
+    fetchMyLeagues();
+  };
+
+  const handleJoinLeague = async () => {
+    if (!joinCode.trim()) return alert("Enter an invite code!");
+    
+    const { data: league, error: findErr } = await supabase.from('leagues').select('*').eq('invite_code', joinCode.toUpperCase()).single();
+    if (findErr || !league) return alert("Invalid invite code.");
+
+    const { error: joinErr } = await supabase.from('league_members').insert({
+      league_id: league.id,
+      user_id: userId,
+      role: 'member'
+    });
+
+    if (joinErr) return alert("You are already in this league!");
+
+    setJoinCode("");
+    setShowJoin(false);
+    fetchMyLeagues();
+  };
+
+  if (activeLeagueId) {
+    return <LeagueDetail leagueId={activeLeagueId} userId={userId} onBack={() => setActiveLeagueId(null)} />;
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      
+      {/* Top Action Buttons */}
+      <div className="grid grid-cols-2 gap-4">
+        <button onClick={() => { setShowCreate(!showCreate); setShowJoin(false); }} className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs transition-colors ${showCreate ? 'bg-emerald-500 text-black' : 'bg-white/5 text-emerald-400 border border-white/10 hover:border-emerald-500/30'}`}>
+          <Plus className="w-4 h-4"/> Create League
+        </button>
+        <button onClick={() => { setShowJoin(!showJoin); setShowCreate(false); }} className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs transition-colors ${showJoin ? 'bg-blue-500 text-black' : 'bg-white/5 text-blue-400 border border-white/10 hover:border-blue-500/30'}`}>
+          <LogIn className="w-4 h-4"/> Join League
+        </button>
+      </div>
+
+      {/* Input Panels */}
+      {showCreate && (
+        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row gap-4 items-center">
+          <input type="text" placeholder="League Name (e.g. Office Pool)" value={newLeagueName} onChange={(e) => setNewLeagueName(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-6 py-4 text-white focus:border-emerald-400 outline-none font-bold" />
+          <button onClick={handleCreateLeague} className="w-full md:w-auto px-8 py-4 bg-emerald-500 text-black font-black rounded-xl uppercase tracking-widest text-xs whitespace-nowrap">Create</button>
+        </div>
+      )}
+
+      {showJoin && (
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row gap-4 items-center">
+          <input type="text" placeholder="6-Digit Invite Code" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={6} className="w-full bg-black/40 border border-white/10 rounded-xl px-6 py-4 text-white focus:border-blue-400 outline-none font-black uppercase tracking-[0.3em] text-center md:text-left" />
+          <button onClick={handleJoinLeague} className="w-full md:w-auto px-8 py-4 bg-blue-500 text-black font-black rounded-xl uppercase tracking-widest text-xs whitespace-nowrap">Join</button>
+        </div>
+      )}
+
+      {/* League List */}
+      <h3 className="text-slate-500 font-black uppercase tracking-widest text-xs mb-4 ml-2 border-b border-white/5 pb-2">My Leagues</h3>
+      {loading ? (
+         <div className="text-center text-emerald-400 uppercase font-black tracking-widest text-xs py-10 animate-pulse">Loading Leagues...</div>
+      ) : leagues.length === 0 ? (
+        <div className="bg-white/5 border border-white/10 rounded-3xl p-10 text-center flex flex-col items-center">
+          <Users className="w-12 h-12 text-slate-600 mb-4" />
+          <p className="text-slate-400 font-bold">You aren't in any private leagues yet.</p>
+          <p className="text-slate-500 text-xs mt-2">Create one to challenge your friends, or join an existing one!</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {leagues.map(l => (
+            <div key={l.id} onClick={() => setActiveLeagueId(l.id)} className="bg-white/5 border border-white/10 hover:border-emerald-500/30 rounded-2xl p-6 flex justify-between items-center cursor-pointer transition-colors group">
+              <div>
+                <h4 className="text-xl font-black text-white uppercase italic tracking-tight group-hover:text-emerald-400 transition-colors">{l.name}</h4>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1">
+                  {l.myRole === 'admin' ? <Shield className="w-3 h-3 text-amber-400"/> : <Users className="w-3 h-3"/>} 
+                  {l.myRole === 'admin' ? 'League Admin' : 'Member'}
+                </p>
+              </div>
+              <ChevronLeft className="w-6 h-6 text-slate-600 rotate-180 group-hover:text-emerald-400 transition-colors" />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LeagueDetail({ leagueId, userId, onBack }: { leagueId: string, userId: string, onBack: () => void }) {
+  const [leagueData, setLeagueData] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const fetchLeagueDetails = async () => {
+    // Get league info
+    const { data: league } = await supabase.from('leagues').select('*').eq('id', leagueId).single();
+    setLeagueData(league);
+
+    // Get members and roles
+    const { data: memberData } = await supabase.from('league_members').select('*').eq('league_id', leagueId);
+    if (memberData) {
+      const myRole = memberData.find(m => m.user_id === userId)?.role;
+      setIsAdmin(myRole === 'admin');
+
+      // Get profile info (points/names) for these members
+      const userIds = memberData.map(m => m.user_id);
+      const { data: profiles } = await supabase.from('profiles').select('*').in('id', userIds);
+
+      // Merge and sort by points
+      const merged = profiles?.map(p => ({
+        ...p,
+        role: memberData.find(m => m.user_id === p.id)?.role
+      })).sort((a, b) => b.total_points - a.total_points) || [];
+      
+      setMembers(merged);
+    }
+  };
+
+  useEffect(() => { fetchLeagueDetails(); }, [leagueId]);
+
+  const handleLeaveLeague = async () => {
+    if(!confirm("Are you sure you want to leave this league?")) return;
+    await supabase.from('league_members').delete().eq('league_id', leagueId).eq('user_id', userId);
+    onBack();
+  };
+
+  if (!leagueData) return <div className="text-center py-10 text-emerald-400 font-black animate-pulse">Loading League...</div>;
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      
+      {/* League Header */}
+      <div className="bg-[#12151c] border border-white/5 rounded-3xl p-6 md:p-8 shadow-xl flex items-center justify-between">
+        <div className="flex items-center gap-4">
+           <button onClick={onBack} className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition-colors"><ChevronLeft className="w-5 h-5 text-slate-300"/></button>
+           <div>
+             <h2 className="text-2xl md:text-3xl font-black text-white uppercase italic tracking-tighter leading-none">{leagueData.name}</h2>
+             <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mt-1.5">{members.length} Members</p>
+           </div>
+        </div>
+        {isAdmin && (
+          <button onClick={() => setShowSettings(!showSettings)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${showSettings ? 'bg-amber-400 text-black' : 'bg-white/5 text-amber-400 hover:bg-amber-400/20'}`}>
+            <Settings className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+
+      {showSettings && isAdmin ? (
+        <LeagueSettings leagueData={leagueData} members={members} userId={userId} refresh={fetchLeagueDetails} />
+      ) : (
+        <div className="space-y-6">
+          {/* Custom Leaderboard */}
+          <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-xl">
+            <div className="p-4 md:p-5 bg-white/5 border-b border-white/5 flex justify-between text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap md:pl-6"><span>Player / Rank</span><span>Total Points</span></div>
+            {members.map((p: any, i) => (
+              <div key={p.id} className={`p-4 md:p-6 flex justify-between items-center transition-colors hover:bg-white/5 ${p.id === userId ? "bg-emerald-500/10" : ""}`}>
+                <div className="flex items-center gap-3 md:gap-4">
+                  <span className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-[11px] font-black shadow-md ${i === 0 ? "bg-amber-400 text-black shadow-amber-400/20" : i === 1 ? "bg-slate-400 text-black shadow-slate-400/20" : i === 2 ? "bg-orange-800 text-black shadow-orange-800/20" : "bg-white/10"}`}>{i + 1}</span>
+                  <div className="flex flex-col">
+                    <span className="font-black uppercase text-base md:text-lg tracking-tight whitespace-nowrap flex items-center gap-2">
+                      {p.username} {p.role === 'admin' && <Shield className="w-3 h-3 text-amber-400" title="League Admin"/>}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-amber-400 font-black text-xl md:text-2xl italic tabular-nums leading-none tracking-tight">{p.total_points}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Leave Button */}
+          <div className="flex justify-end">
+            <button onClick={handleLeaveLeague} className="text-[10px] font-black uppercase text-rose-500 hover:text-rose-400 tracking-widest flex items-center gap-1.5 bg-rose-500/10 px-4 py-2 rounded-lg transition-colors"><LogOut className="w-3 h-3"/> Leave League</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LeagueSettings({ leagueData, members, userId, refresh }: any) {
+  const handleKick = async (targetId: string) => {
+    if(!confirm("Kick this player from the league?")) return;
+    await supabase.from('league_members').delete().eq('league_id', leagueData.id).eq('user_id', targetId);
+    refresh();
+  };
+
+  const handlePromote = async (targetId: string) => {
+    if(!confirm("Promote this player to League Admin?")) return;
+    await supabase.from('league_members').update({ role: 'admin' }).eq('league_id', leagueData.id).eq('user_id', targetId);
+    refresh();
+  };
+
+  return (
+    <div className="bg-amber-400/5 border border-amber-400/20 rounded-3xl p-6 md:p-8 space-y-8 animate-fade-in">
+      
+      <div>
+        <h3 className="text-amber-400 font-black uppercase italic tracking-widest mb-4 flex items-center gap-2 text-sm"><Key className="w-4 h-4"/> Invite Code</h3>
+        <div className="bg-black/40 border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div>
+            <p className="text-white font-black text-3xl tracking-[0.3em] uppercase">{leagueData.invite_code}</p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2">Share this code to let friends join.</p>
+          </div>
+          <button onClick={() => { navigator.clipboard.writeText(leagueData.invite_code); alert("Copied to clipboard!"); }} className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-colors w-full md:w-auto">Copy Code</button>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-amber-400 font-black uppercase italic tracking-widest mb-4 flex items-center gap-2 text-sm"><Users className="w-4 h-4"/> Manage Members</h3>
+        <div className="space-y-3">
+          {members.map((m: any) => (
+            <div key={m.id} className="bg-black/40 border border-white/5 p-4 rounded-xl flex justify-between items-center">
+              <span className="text-sm font-black text-white uppercase flex items-center gap-2">{m.username} {m.role === 'admin' && <Shield className="w-3 h-3 text-amber-400"/>}</span>
+              
+              {m.id !== userId && (
+                <div className="flex gap-2">
+                  {m.role !== 'admin' && (
+                    <button onClick={() => handlePromote(m.id)} className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black p-2 rounded-lg transition-colors" title="Make Admin"><UserCheck className="w-4 h-4"/></button>
+                  )}
+                  <button onClick={() => handleKick(m.id)} className="bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white p-2 rounded-lg transition-colors" title="Remove Player"><Trash className="w-4 h-4"/></button>
+                </div>
+              )}
+              {m.id === userId && <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">You</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }
@@ -887,7 +1176,7 @@ function MatchList({ matches, tab, setTab, userId }: any) {
   );
 }
 
-function HowToPlaySidebar({ tab }: { tab: number }) {
+function HowToPlaySidebar({ tab }: { number }) {
   const content: Record<number, { howTo: React.ReactNode; tip: React.ReactNode }> = {
     1: {
       howTo: <>Keep it simple for the group stages. Just predict the 90-minute outcome: Home Win <strong className="text-white">(1)</strong>, Draw <strong className="text-white">(X)</strong>, or Away Win <strong className="text-white">(2)</strong>. Look for the green checkmark to ensure your auto-save was successful.</>,
@@ -1239,7 +1528,21 @@ function RulesPage() {
         </div>
       </div>
 
-      {/* Tournament Deadlines (Translated to English) */}
+      {/* Private Leagues */}
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 shadow-xl">
+        <h3 className="text-blue-400 font-black uppercase italic text-lg md:text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><Users className="w-5 h-5 flex-shrink-0"/> Private Leagues & Office Pools</h3>
+        <p className="text-[10px] md:text-[11px] text-slate-400 mb-6 italic">Bragging rights with your friends.</p>
+        <ul className="space-y-3 text-[10px] md:text-[11px] text-slate-400 leading-relaxed">
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <strong className="text-white">Universal Points:</strong> You only need to enter your predictions once. The points you earn automatically apply to the Global Leaderboard AND any private leagues you have joined.
+          </li>
+          <li className="bg-white/5 p-4 rounded-xl border border-white/5">
+            <strong className="text-white">League Admins:</strong> Whoever creates a private league becomes its Admin. Admins can share the unique invite code with friends, remove players, and promote other members in their group to Admin status.
+          </li>
+        </ul>
+      </div>
+
+      {/* Tournament Deadlines */}
       <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 shadow-xl">
         <h3 className="text-amber-400 font-black uppercase italic text-lg md:text-xl underline tracking-widest leading-none flex items-center gap-3 mb-6"><AlertCircle className="w-5 h-5 flex-shrink-0"/> Tournament Deadlines (CET/CEST)</h3>
         <ul className="space-y-3 text-[10px] md:text-[11px] text-slate-400">
