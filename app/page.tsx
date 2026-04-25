@@ -12,7 +12,7 @@ const TOURNAMENT_START = new Date("2026-06-11T21:00:00+02:00");
 const TEAM_ABBREVIATIONS: Record<string, string> = {
   "mexico": "MEX", "usa": "USA", "united states": "USA", "canada": "CAN", "argentina": "ARG",
   "brazil": "BRA", "france": "FRA", "england": "ENG", "spain": "ESP", "germany": "GER",
-  "portugal": "POR", "netherlands": "NED", "belgium": "BEL", "italy": "ITA", "croatia": "CRO",
+  "portugal": "POR", "netherlands": "NED", "belgium": "BEL", "croatia": "CRO",
   "denmark": "DEN", "norway": "NOR", "sweden": "SWE", "poland": "POL", "serbia": "SRB",
   "switzerland": "SUI", "austria": "AUT", "turkey": "TUR", "ukraine": "UKR", "scotland": "SCO",
   "wales": "WAL", "hungary": "HUN", "greece": "GRE", "czech republic": "CZE", "uruguay": "URU",
@@ -24,11 +24,12 @@ const TEAM_ABBREVIATIONS: Record<string, string> = {
   "iraq": "IRQ", "new zealand": "NZL", "panama": "PAN"
 };
 
+// Removed Italy, ensured Iran is present.
 const FULL_COUNTRIES = [
   "Algeria", "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Cameroon",
   "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czech Republic", "Denmark",
   "Ecuador", "Egypt", "England", "France", "Germany", "Ghana", "Greece", "Hungary",
-  "Iceland", "Iran", "Iraq", "Italy", "Ivory Coast", "Japan", "Mexico", "Morocco",
+  "Iceland", "Iran", "Iraq", "Ivory Coast", "Japan", "Mexico", "Morocco",
   "Netherlands", "New Zealand", "Nigeria", "Norway", "Panama", "Paraguay", "Peru",
   "Poland", "Portugal", "Qatar", "Saudi Arabia", "Scotland", "Senegal", "Serbia",
   "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Tunisia", "Turkey",
@@ -52,7 +53,7 @@ const getFlag = (team: any) => {
   const map: any = {
     "usa": "us", "mexico": "mx", "canada": "ca", "argentina": "ar", "brazil": "br", "france": "fr",
     "england": "gb-eng", "spain": "es", "germany": "de", "portugal": "pt", "netherlands": "nl",
-    "belgium": "be", "italy": "it", "croatia": "hr", "denmark": "dk", "norway": "no", "sweden": "se",
+    "belgium": "be", "croatia": "hr", "denmark": "dk", "norway": "no", "sweden": "se",
     "poland": "pl", "serbia": "rs", "switzerland": "ch", "austria": "at", "turkey": "tr", "ukraine": "ua",
     "scotland": "gb-sct", "wales": "gb-wls", "hungary": "hu", "greece": "gr", "czech republic": "cz",
     "uruguay": "uy", "colombia": "co", "chile": "cl", "ecuador": "ec", "peru": "pe", "paraguay": "py",
@@ -85,7 +86,6 @@ export default function WorldCupApp() {
     const { data } = await supabase.from("bonus_predictions").select("user_id").eq("user_id", id).maybeSingle();
     if (data) {
       setBonusCompleted(true);
-      // Only set to matches if we are in the initial loading state.
       setView((prev) => (prev === "loading" ? "matches" : prev));
     } else {
       setBonusCompleted(false);
@@ -213,7 +213,7 @@ export default function WorldCupApp() {
         <nav className="max-w-[1400px] mx-auto px-4 pb-4 flex gap-1 md:gap-2 md:justify-center overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => bonusCompleted && setView("matches")} 
-            className={`flex-1 md:flex-none min-w-[80px] md:w-32 py-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
+            className={`flex-1 md:flex-none min-w-[80px] md:w-32 py-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest rounded-lg transition flex items-center justify-center gap-2 flex-shrink-0 ${view === "matches" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"} ${!bonusCompleted && "opacity-40 cursor-not-allowed"}`}
           >
             {!bonusCompleted && <Lock className="w-2.5 h-2.5" />} Matches
           </button>
@@ -227,7 +227,7 @@ export default function WorldCupApp() {
 
       {/* SCROLLABLE MAIN CONTENT */}
       <main className="max-w-[1400px] mx-auto px-4 mt-6">
-        {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} />}
+        {view === "matches" && <MatchList matches={matches} tab={tab} setTab={setTab} userId={user.id} setView={setView} />}
         {view === "bonus" && <BonusPage userId={user.id} isCompleted={bonusCompleted} onSaved={() => { setBonusCompleted(true); setView("matches"); }} />}
         {view === "leagues" && <LeaguesPage userId={user.id} />}
         {view === "stats" && <StatsPage matches={matches} />}
@@ -389,21 +389,17 @@ function LeagueDetail({ leagueId, userId, onBack }: { leagueId: string, userId: 
   const [showSettings, setShowSettings] = useState(false);
 
   const fetchLeagueDetails = async () => {
-    // Get league info
     const { data: league } = await supabase.from('leagues').select('*').eq('id', leagueId).single();
     setLeagueData(league);
 
-    // Get members and roles
     const { data: memberData } = await supabase.from('league_members').select('*').eq('league_id', leagueId);
     if (memberData) {
       const myRole = memberData.find(m => m.user_id === userId)?.role;
       setIsAdmin(myRole === 'admin');
 
-      // Get profile info (points/names) for these members
       const userIds = memberData.map(m => m.user_id);
       const { data: profiles } = await supabase.from('profiles').select('*').in('id', userIds);
 
-      // Merge and sort by points
       const merged = profiles?.map(p => ({
         ...p,
         role: memberData.find(m => m.user_id === p.id)?.role
@@ -425,8 +421,6 @@ function LeagueDetail({ leagueId, userId, onBack }: { leagueId: string, userId: 
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      
-      {/* League Header */}
       <div className="bg-[#12151c] border border-white/5 rounded-3xl p-6 md:p-8 shadow-xl flex items-center justify-between">
         <div className="flex items-center gap-4">
            <button onClick={onBack} className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition-colors"><ChevronLeft className="w-5 h-5 text-slate-300"/></button>
@@ -436,7 +430,7 @@ function LeagueDetail({ leagueId, userId, onBack }: { leagueId: string, userId: 
            </div>
         </div>
         {isAdmin && (
-          <button onClick={() => setShowSettings(!showSettings)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${showSettings ? 'bg-amber-400 text-black' : 'bg-white/5 text-amber-400 hover:bg-amber-400/20'}`}>
+          <button onClick={() => setShowSettings(!showSettings)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${showSettings ? 'bg-amber-400 text-black' : 'bg-white/5 text-amber-400 hover:bg-amber-400/20'}`}>
             <Settings className="w-5 h-5" />
           </button>
         )}
@@ -446,7 +440,6 @@ function LeagueDetail({ leagueId, userId, onBack }: { leagueId: string, userId: 
         <LeagueSettings leagueData={leagueData} members={members} userId={userId} refresh={fetchLeagueDetails} />
       ) : (
         <div className="space-y-6">
-          {/* Custom Leaderboard */}
           <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-xl">
             <div className="p-4 md:p-5 bg-white/5 border-b border-white/5 flex justify-between text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap md:pl-6"><span>Player / Rank</span><span>Total Points</span></div>
             {members.map((p: any, i) => (
@@ -464,7 +457,6 @@ function LeagueDetail({ leagueId, userId, onBack }: { leagueId: string, userId: 
             ))}
           </div>
 
-          {/* Leave Button */}
           <div className="flex justify-end">
             <button onClick={handleLeaveLeague} className="text-[10px] font-black uppercase text-rose-500 hover:text-rose-400 tracking-widest flex items-center gap-1.5 bg-rose-500/10 px-4 py-2 rounded-lg transition-colors"><LogOut className="w-3 h-3"/> Leave League</button>
           </div>
@@ -488,8 +480,7 @@ function LeagueSettings({ leagueData, members, userId, refresh }: any) {
   };
 
   return (
-    <div className="bg-amber-400/5 border border-amber-400/20 rounded-3xl p-6 md:p-8 space-y-8 animate-fade-in">
-      
+    <div className="bg-amber-400/5 border border-amber-400/20 rounded-3xl p-6 md:p-8 space-y-8">
       <div>
         <h3 className="text-amber-400 font-black uppercase italic tracking-widest mb-4 flex items-center gap-2 text-sm"><Key className="w-4 h-4"/> Invite Code</h3>
         <div className="bg-black/40 border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -507,7 +498,6 @@ function LeagueSettings({ leagueData, members, userId, refresh }: any) {
           {members.map((m: any) => (
             <div key={m.id} className="bg-black/40 border border-white/5 p-4 rounded-xl flex justify-between items-center">
               <span className="text-sm font-black text-white uppercase flex items-center gap-2">{m.username} {m.role === 'admin' && <Shield className="w-3 h-3 text-amber-400"/>}</span>
-              
               {m.id !== userId && (
                 <div className="flex gap-2">
                   {m.role !== 'admin' && (
@@ -521,7 +511,6 @@ function LeagueSettings({ leagueData, members, userId, refresh }: any) {
           ))}
         </div>
       </div>
-
     </div>
   );
 }
@@ -539,9 +528,9 @@ function StatsPage({ matches }: { matches: any[] }) {
     <div className="space-y-6">
       <div className="sticky top-[100px] z-40 bg-[#07090d]/95 backdrop-blur-xl pt-2 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
-          <button onClick={() => setSubTab(1)} className={`flex-1 min-w-[120px] py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
-          <button onClick={() => setSubTab(2)} className={`flex-1 min-w-[120px] py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
-          <button onClick={() => setSubTab(3)} className={`flex-1 min-w-[120px] py-2 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
+          <button onClick={() => setSubTab(1)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 1 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Standings Group Stage</button>
+          <button onClick={() => setSubTab(2)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 2 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Knockout Bracket</button>
+          <button onClick={() => setSubTab(3)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition ${subTab === 3 ? "bg-emerald-500 text-black" : "text-slate-500"}`}>Top Scorers & Assists</button>
         </div>
       </div>
 
@@ -1035,7 +1024,7 @@ function AdminPanel({ matches, syncFromAPI, refreshMatches }: any) {
 
 function NavBtn({ active, onClick, label }: any) {
   return (
-    <button onClick={onClick} className={`flex-1 md:flex-none min-w-[80px] md:w-32 py-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest rounded-lg transition ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+    <button onClick={onClick} className={`flex-1 md:flex-none min-w-[80px] md:w-32 py-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest rounded-lg transition flex-shrink-0 ${active ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}>
       {label}
     </button>
   );
@@ -1066,8 +1055,8 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
   );
 }
 
-// Side Leaderboard Component
-function MiniLeaderboard() {
+// Side Leaderboard Component (Global)
+function MiniLeaderboard({ setView }: any) {
   const [list, setList] = useState([]);
   useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).limit(5).then(({ data }) => setList(data as any || [])); }, []);
   return (
@@ -1082,12 +1071,83 @@ function MiniLeaderboard() {
           <span className="text-sm font-black text-emerald-400 tabular-nums">{p.total_points}</span>
         </div>
       ))}
-      <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">See Full Standings</button>
+      <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setView('leaderboard'); }} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">See Full Standings</button>
     </div>
   );
 }
 
-function MatchList({ matches, tab, setTab, userId }: any) {
+// Side Leaderboard Component (Pinned Private League)
+function PinnedLeagueLeaderboard({ userId, setView }: any) {
+  const [leagues, setLeagues] = useState<any[]>([]);
+  const [pinnedId, setPinnedId] = useState<string>("");
+  const [members, setMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('pinnedLeague');
+    if (saved) setPinnedId(saved);
+
+    supabase.from('league_members').select('league_id').eq('user_id', userId).then(({data}) => {
+       if(data && data.length > 0) {
+          const ids = data.map(d => d.league_id);
+          supabase.from('leagues').select('id, name').in('id', ids).then(({data: lData}) => {
+             setLeagues(lData || []);
+          });
+       }
+    });
+  }, [userId]);
+
+  useEffect(() => {
+     if (!pinnedId) { setMembers([]); return; }
+     localStorage.setItem('pinnedLeague', pinnedId);
+     supabase.from('league_members').select('user_id').eq('league_id', pinnedId).then(({data}) => {
+        if(data) {
+           const uids = data.map(d => d.user_id);
+           supabase.from('profiles').select('*').in('id', uids).order('total_points', { ascending: false }).limit(5).then(({data: pData}) => {
+              setMembers(pData || []);
+           });
+        }
+     });
+  }, [pinnedId]);
+
+  if (leagues.length === 0) return null;
+
+  return (
+    <div className="mt-8 border-t border-white/5 pt-6 animate-fade-in">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-blue-400 font-black uppercase tracking-widest flex items-center gap-2 text-xs"><Users className="w-4 h-4"/> Pinned League</h3>
+        <select 
+          className="bg-black/40 text-[9px] font-bold text-white border border-white/10 rounded outline-none px-2 py-1 max-w-[100px] truncate uppercase tracking-widest" 
+          value={pinnedId} 
+          onChange={(e) => setPinnedId(e.target.value)}
+        >
+           <option value="">Select...</option>
+           {leagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+        </select>
+      </div>
+
+      {!pinnedId ? (
+        <p className="text-[10px] text-slate-500 uppercase tracking-widest italic text-center py-4">Pin a league above</p>
+      ) : members.length === 0 ? (
+        <p className="text-[10px] text-slate-500 uppercase tracking-widest italic text-center py-4">Loading...</p>
+      ) : (
+        <div className="space-y-3">
+          {members.map((p: any, i) => (
+            <div key={p.id} className="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 last:pb-0">
+              <div className="flex items-center gap-3">
+                <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-slate-400 text-black" : i === 2 ? "bg-orange-800 text-black" : "text-slate-500 bg-white/5"}`}>{i + 1}</span>
+                <span className={`text-[11px] font-bold uppercase truncate max-w-[80px] ${p.id === userId ? "text-emerald-400" : "text-white"}`}>{p.username}</span>
+              </div>
+              <span className="text-sm font-black text-blue-400 tabular-nums">{p.total_points}</span>
+            </div>
+          ))}
+          <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setView('leagues'); }} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">Manage Leagues</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MatchList({ matches, tab, setTab, userId, setView }: any) {
   const now = new Date();
   
   let lockTime: Date | null = null;
@@ -1167,16 +1227,17 @@ function MatchList({ matches, tab, setTab, userId }: any) {
         </div>
       </div>
 
-      {/* RIGHT SIDEBAR: Top 5 Leaderboard */}
+      {/* RIGHT SIDEBAR: Top 5 Leaderboard & Pinned League */}
       <div className="hidden lg:block sticky top-[100px] bg-[#12151c] border border-white/5 rounded-2xl p-6 shadow-xl">
-        <h3 className="text-amber-400 font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-xs"><Trophy className="w-4 h-4"/> Top 5 Leaders</h3>
-        <MiniLeaderboard />
+        <h3 className="text-amber-400 font-black uppercase tracking-widest mb-6 flex items-center gap-2 text-xs"><Trophy className="w-4 h-4"/> Global Top 5 Leaders</h3>
+        <MiniLeaderboard setView={setView} />
+        <PinnedLeagueLeaderboard userId={userId} setView={setView} />
       </div>
     </div>
   );
 }
 
-function HowToPlaySidebar({ tab }: { number }) {
+function HowToPlaySidebar({ tab }: { tab: number }) {
   const content: Record<number, { howTo: React.ReactNode; tip: React.ReactNode }> = {
     1: {
       howTo: <>Keep it simple for the group stages. Just predict the 90-minute outcome: Home Win <strong className="text-white">(1)</strong>, Draw <strong className="text-white">(X)</strong>, or Away Win <strong className="text-white">(2)</strong>. Look for the green checkmark to ensure your auto-save was successful.</>,
@@ -1223,7 +1284,7 @@ function HowToPlaySidebar({ tab }: { number }) {
 
 function PhaseTab({ id, label, active, onClick }: any) {
   return (
-    <button onClick={() => onClick(id)} className={`flex-1 min-w-[120px] py-2 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${active ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>{label}</button>
+    <button onClick={() => onClick(id)} className={`flex-shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition whitespace-nowrap ${active ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>{label}</button>
   );
 }
 
