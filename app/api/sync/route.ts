@@ -1,4 +1,3 @@
-// app/api/sync/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -14,7 +13,7 @@ export async function POST(req: Request) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // Check if this is a MANUAL settle from the Admin Panel
+    // 1. Check if this is a MANUAL settle/unsettle from the Admin Panel UI
     const body = await req.json().catch(() => null);
     
     if (body && body.action === 'manual_settle') {
@@ -29,7 +28,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: "Match unsettled." });
     }
 
-    // If no body, it's the GLOBAL API SYNC
+    // 2. If no body, it's the GLOBAL API SYNC (The Automated Way)
     if (!RAPID_KEY) return NextResponse.json({ error: "Missing RapidAPI Key" }, { status: 500 });
 
     const res = await fetch(`https://v3.football.api-sports.io/fixtures?league=1&season=2026`, {
@@ -38,23 +37,44 @@ export async function POST(req: Request) {
     const data = await res.json();
 
     let settledCount = 0;
-    for (const fixture of data.response || []) {
-      const status = fixture.fixture?.status?.short;
-      if (status === "FT" || status === "AET" || status === "PEN") {
-        const hScore = fixture.goals.home;
-        const aScore = fixture.goals.away;
-        const penHome = fixture.score?.penalty?.home;
-        const penAway = fixture.score?.penalty?.away;
-        const pWinner = penHome > penAway ? 'home' : penAway > penHome ? 'away' : null;
+    let updatedCount = 0;
 
-        const { data: match } = await supabase.from("matches").select("*").eq("api_id", fixture.fixture.id).single();
-        if (match && !match.settled) {
+    for (const fixture of data.response || []) {
+      const apiId = fixture.fixture.id;
+      const status = fixture.fixture?.status?.short;
+      const apiHomeTeam = fixture.teams.home.name;
+      const apiAwayTeam = fixture.teams.away.name;
+      const apiKickoff = fixture.fixture.date;
+
+      // Find the matching game in your database
+      const { data: match } = await supabase.from("matches").select("*").eq("api_id", apiId).single();
+      
+      if (match) {
+        // ALWAYS UPDATE: If the API changed a team name (e.g. Italy -> Iran) or a kickoff time, update our DB automatically.
+        if (match.home_team !== apiHomeTeam || match.away_team !== apiAwayTeam || match.kickoff_time !== apiKickoff) {
+          await supabase.from("matches").update({
+            home_team: apiHomeTeam,
+            away_team: apiAwayTeam,
+            kickoff_time: apiKickoff
+          }).eq("id", match.id);
+          updatedCount++;
+        }
+
+        // SETTLE MATCH: If the game is officially finished and we haven't settled it yet, award points.
+        if ((status === "FT" || status === "AET" || status === "PEN") && !match.settled) {
+          const hScore = fixture.goals.home;
+          const aScore = fixture.goals.away;
+          const penHome = fixture.score?.penalty?.home;
+          const penAway = fixture.score?.penalty?.away;
+          const pWinner = penHome > penAway ? 'home' : penAway > penHome ? 'away' : null;
+
           await calculatePointsForMatch(supabase, match, { h: hScore, a: aScore, pw: pWinner });
           settledCount++;
         }
       }
     }
-    return NextResponse.json({ success: true, settledCount });
+    
+    return NextResponse.json({ success: true, settledCount, updatedCount });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
