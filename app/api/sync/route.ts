@@ -938,13 +938,13 @@ function WelcomePopup({ onClose }: { onClose: () => void }) {
         </h2>
         <div className="space-y-4 text-slate-400 text-sm leading-relaxed mt-6 text-left">
           <p className="font-bold text-center">Here is how the prediction league works:</p>
-          <ul className="list-disc pl-5 space-y-2 text-[11px]">
-            <li><strong className="text-white">Bonus (Locks June 11):</strong> Predict tournament stats. Must be completed first!</li>
-            <li><strong className="text-white">Group Stage & R32:</strong> Predict outcomes (1X2) for all matches.</li>
-            <li><strong className="text-white">Knockouts (R16 onwards):</strong> Predict exact scores. Locks when the first game of that round starts.</li>
-            <li><strong className="text-white">Private Leagues:</strong> Head to the Leagues tab to create or join a mini-league with your friends. Your points count toward both the global and private leaderboards!</li>
-          </ul>
-          <p className="text-[11px] italic text-center mt-4">Check out the <strong className="text-white">Rules</strong> tab for the full scoring system.</p>
+          <div className="space-y-4 mt-4">
+            <p className="text-[11px] leading-relaxed"><strong className="text-white">Bonus (Locks June 11):</strong> Predict tournament stats. Must be completed first!</p>
+            <p className="text-[11px] leading-relaxed"><strong className="text-white">Group Stage & R32:</strong> Predict outcomes (1X2) for all matches.</p>
+            <p className="text-[11px] leading-relaxed"><strong className="text-white">Knockouts (R16 onwards):</strong> Predict exact scores. Locks when the first game of that round starts.</p>
+            <p className="text-[11px] leading-relaxed"><strong className="text-white">Private Leagues:</strong> Head to the Leagues tab to create or join a mini-league with your friends. Your points count toward both the global and private leaderboards!</p>
+            <p className="text-[11px] italic text-center mt-6">Check out the <strong className="text-white">Rules</strong> tab for the full scoring system.</p>
+          </div>
         </div>
         <button onClick={onClose} className="w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase mt-10 tracking-[0.2em] text-xs hover:scale-[1.02] transition-all shadow-md">Let's Get Started</button>
       </div>
@@ -1036,7 +1036,7 @@ function MatchList({ matches, tab, setTab, userId, setView }: any) {
   let filtered = [];
   if (tab === 6) {
     lockTime = null; matchesLocked = true; 
-    filtered = matches.filter((m: any) => m.settled).sort((a,b) => new Date(b.kickoff_time).getTime() - new Date(a.kickoff_time).getTime()); 
+    filtered = matches.filter((m: any) => m.settled).sort((a,b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime()); 
   } else {
     const groupEnd = matches.filter((m: any) => m?.sub_phase === 'group').slice(-1)[0];
     const r32End = matches.filter((m: any) => m?.sub_phase === 'r32').slice(-1)[0];
@@ -1407,6 +1407,82 @@ function UsernameSetup({ userId, onComplete }: any) {
         <input type="text" placeholder="e.g. Zlatan" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center focus:border-emerald-400 outline-none font-bold italic shadow-inner" />
         <button onClick={save} className="w-full bg-emerald-500 text-black py-4 rounded-xl font-black uppercase mt-6 shadow-lg tracking-[0.2em] italic hover:scale-[1.02] transition-transform text-xs">Start Tournament</button>
       </div>
+    </div>
+  );
+}
+
+function MiniLeaderboard({ setView }: any) {
+  const [list, setList] = useState([]);
+  useEffect(() => { supabase.from("profiles").select("*").order("total_points", { ascending: false }).limit(5).then(({ data }) => setList(data as any || [])); }, []);
+  return (
+    <div className="space-y-3">
+      {list.length === 0 && <p className="text-[10px] text-slate-500 uppercase tracking-widest italic text-center py-4">No points yet</p>}
+      {list.map((p: any, i) => (
+        <div key={p.id} className="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 last:pb-0">
+          <div className="flex items-center gap-3">
+            <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-slate-400 text-black" : i === 2 ? "bg-orange-800 text-black" : "text-slate-500 bg-white/5"}`}>{i + 1}</span>
+            <span className="text-[11px] font-bold text-white uppercase truncate max-w-[80px]">{p.username}</span>
+          </div>
+          <span className="text-sm font-black text-emerald-400 tabular-nums">{p.total_points}</span>
+        </div>
+      ))}
+      <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setView('leaderboard'); }} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">See Full Standings</button>
+    </div>
+  );
+}
+
+function PinnedLeagueLeaderboard({ userId, setView }: any) {
+  const [leagues, setLeagues] = useState<any[]>([]);
+  const [pinnedId, setPinnedId] = useState<string>("");
+  const [members, setMembers] = useState<any[]>([]);
+  useEffect(() => {
+    const saved = localStorage.getItem('pinnedLeague');
+    if (saved) setPinnedId(saved);
+    supabase.from('league_members').select('league_id').eq('user_id', userId).then(({data}) => {
+       if(data && data.length > 0) {
+          const ids = data.map(d => d.league_id);
+          supabase.from('leagues').select('id, name').in('id', ids).then(({data: lData}) => setLeagues(lData || []));
+       }
+    });
+  }, [userId]);
+  useEffect(() => {
+     if (!pinnedId) { setMembers([]); return; }
+     localStorage.setItem('pinnedLeague', pinnedId);
+     supabase.from('league_members').select('user_id').eq('league_id', pinnedId).then(({data}) => {
+        if(data) {
+           const uids = data.map(d => d.user_id);
+           supabase.from('profiles').select('*').in('id', uids).order('total_points', { ascending: false }).limit(5).then(({data: pData}) => setMembers(pData || []));
+        }
+     });
+  }, [pinnedId]);
+  if (leagues.length === 0) return null;
+  return (
+    <div className="mt-8 border-t border-white/5 pt-6 animate-fade-in">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-blue-400 font-black uppercase tracking-widest flex items-center gap-2 text-xs"><Users className="w-4 h-4"/> Pinned League</h3>
+        <select className="bg-black/40 text-[9px] font-bold text-white border border-white/10 rounded outline-none px-2 py-1 max-w-[100px] truncate uppercase tracking-widest" value={pinnedId} onChange={(e) => setPinnedId(e.target.value)}>
+           <option value="">Select...</option>
+           {leagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+        </select>
+      </div>
+      {!pinnedId ? (
+        <p className="text-[10px] text-slate-500 uppercase tracking-widest italic text-center py-4">Pin a league above</p>
+      ) : members.length === 0 ? (
+        <p className="text-[10px] text-slate-500 uppercase tracking-widest italic text-center py-4">Loading...</p>
+      ) : (
+        <div className="space-y-3">
+          {members.map((p: any, i) => (
+            <div key={p.id} className="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 last:pb-0">
+              <div className="flex items-center gap-3">
+                <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-slate-400 text-black" : i === 2 ? "bg-orange-800 text-black" : "text-slate-500 bg-white/5"}`}>{i + 1}</span>
+                <span className={`text-[11px] font-bold uppercase truncate max-w-[80px] ${p.id === userId ? "text-emerald-400" : "text-white"}`}>{p.username}</span>
+              </div>
+              <span className="text-sm font-black text-blue-400 tabular-nums">{p.total_points}</span>
+            </div>
+          ))}
+          <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setView('leagues'); }} className="w-full text-center text-[9px] text-slate-500 uppercase tracking-widest pt-2 hover:text-white transition-colors">Manage Leagues</button>
+        </div>
+      )}
     </div>
   );
 }
